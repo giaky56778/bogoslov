@@ -6,6 +6,7 @@ import operator
 from lxml import etree  # type: ignore
 from tqdm import tqdm  # type: ignore
 from fuzzywuzzy import process  # type: ignore
+import unicodedata
 
 from tei_util import word_templ
 
@@ -240,6 +241,69 @@ def link2fname(link: str):
     """
     fname = link.split('"')[1].split("/")[-1]
     return fname
+
+###
+
+def merge_hybrid_raw(
+    k: int | None,
+    algo: str,
+    raw: list[tuple[str, str, float]],
+    texts: dict,
+    scores: dict,
+    problematic: bool = False
+):
+    rank_k = k or 60
+    raw_sorted = sorted(raw, key=lambda t: float(t[2]), reverse=True)
+
+    for i, (text, addr, _) in enumerate(raw_sorted):
+        if not problematic:
+            if addr not in texts:  # addr not in scores: it's useless, if text is false then scores is false
+                texts[addr] = text
+                scores[addr] = {
+                    "score": 0.0,
+                    "algos": []
+                }
+
+            scores[addr]["score"] += 1 / ((i + 1) + rank_k)  # type: ignore
+            scores[addr]["algos"].append(algo)
+        elif addr.split("$$")[0] in texts and text == texts[addr]:
+            scores[addr]["score"] += 1 / ((i + 1) + rank_k)  # type: ignore
+            scores[addr]["algos"].append(algo)
+        else:
+            addrPlus = addr + "$$" + algo + "_" + str(i)
+            texts[addrPlus] = text
+            scores[addrPlus] = {
+                "score": 1 / ((i + 1) + rank_k),
+                "algos": [algo]
+            }
+
+def compose_grouped_text(q):
+    temp=dict()
+    for r in q:
+        temp.setdefault(r.path, []).append({
+            "id": int(r.id),
+            "filename": str(r.filename)
+        })
+    
+    
+    result = []
+    for value in temp.keys():
+        result.append({
+            "path":value,
+            "items":temp[value]
+        })
+        
+    return result
+
+def strip_punctuation(word: str) -> str:
+    return "".join(ch for ch in word if not unicodedata.category(ch).startswith("P"))
+
+def parse_urn(urn_h: str) -> tuple[str, str]:
+    urn_h = urn_h.split(":", 1)[0]
+    parts = urn_h.split(".")
+    path_h = ".".join(parts[:-1])
+    filename_h = parts[-1]
+    return path_h, filename_h
 
 
 if __name__ == "__main__":

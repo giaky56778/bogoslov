@@ -1,5 +1,4 @@
-# This compose reuses an image for multiple containers. Because of this it should be built in advance with:
-# docker build -t bogoslov .
+# This compose reuses an image for multiple containers. Build with: docker build -t bogoslov ./src
 
 services:
   proxy:
@@ -16,9 +15,15 @@ services:
     restart: always
 
   service:
+    build:
+      context: ./src
+      dockerfile: Dockerfile
     image: bogoslov
     # ports:
     #   - 8781:8000
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
       - DEPLOY_PORT=${PUBLIC_PORT}
       - DEPLOY_HOST=${PUBLIC_HOST}

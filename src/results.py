@@ -5,8 +5,9 @@ from urllib.parse import quote_plus
 
 import pandas as pd  # type: ignore
 from openpyxl.styles import Alignment, Font  # type: ignore
+from io import BytesIO
 
-from settings import static_path, base_url
+from settings import static_path, base_url, FRONTEND_URL
 
 
 pfa_templ = "{path}/{fname}#{addr}"
@@ -274,3 +275,54 @@ def render_table(
     fname_result = render_excel(params, data)
 
     return export_templ.format(url=base_url + fname_result), html_result
+
+###
+
+def render_json_hybrid(texts,scores):
+    result=[]
+    for key in scores.keys():
+        s=scores[key]
+        result.append({
+            "found":texts[key],
+            "confidency":s["score"],
+            "algos":s["algos"],
+            "source": path2source(key),
+            "urn": path2urn(key.split("$$")[0]),
+        })
+    return result
+
+def render_excel_hybrid(
+    params: dict[str, str],
+    data: list[dict[str, object]],
+    urn_b: str | None = None,
+    h_start: int | None = None,
+    h_end: int | None = None,
+) -> bytes:
+    df = pd.DataFrame(data)
+
+    for k, v in params.items():
+        df[k] = v
+
+    if urn_b is not None and h_start is not None and h_end is not None:
+        df["preview_url"] = df["urn"].apply(
+            lambda urn_h: f"{FRONTEND_URL}/previewDouble?urn_b={quote_plus(urn_b)}&urn_h={quote_plus(urn_h)}&b_start={h_start}&b_end={h_end}"
+        )
+    else:
+        df["preview_url"] = df.apply(
+            lambda row: f"{FRONTEND_URL}/previewSingle?urn_h={quote_plus(str(row['urn']))}&query={quote_plus(str(row['query']))}",
+            axis=1,
+        )
+
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Result")
+
+        ws = writer.book.worksheets[0]
+        ws.column_dimensions["A"].width = 60
+        ws.column_dimensions["B"].width = 20
+        ws.column_dimensions["C"].width = 35
+        ws.column_dimensions["D"].width = 20
+        ws.column_dimensions["E"].width = 40
+
+    return buffer.getvalue()
+

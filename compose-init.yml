@@ -25,9 +25,10 @@ services:
     volumes:
       - ./corpora.${CORPUS_LANG}/:/corpora/:ro
       - ./models/:/models/
-    command: ./populate.py -v -n -e -f
-    # command: ./populate.py -e -f
-    # command: ./populate.py --embedding=sentence-transformers/LaBSE
+      - ./config.toml:/home/app/config.toml:ro
+    #command: ./populate.py --historical -f
+    command: ./populate.py -v -n
+    # command: ./populate.py -e 
     # command: tail -f /dev/null
     restart: no
     depends_on:
