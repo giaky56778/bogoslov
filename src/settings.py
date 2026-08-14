@@ -1,6 +1,9 @@
 import importlib
 import os
 import tomllib
+from dotenv import load_dotenv
+
+load_dotenv()
 
 with open("config.toml", "rb") as f:
     config = tomllib.load(f)
@@ -56,7 +59,7 @@ ALGO_TOOLPIT={
     "bm25": "Praesent cursus imperdiet blandit. Phasellus non ex luctus, condimentum eros efficitur, ornare diam. Duis ex magna, convallis a venenatis sed, venenatis non dui. Mauris aliquet, tellus ut cursus tristique, urna leo interdum tortor, ac hendrerit dui sem eget lectus. Morbi vulputate congue urna, vel bibendum nunc mattis sed. Curabitur eu euismod magna. Sed at lectus bibendum, ornare justo id, venenatis ante. Cras vulputate non dui nec blandit. Vestibulum blandit dapibus erat, eget bibendum justo aliquam a. Donec fringilla at tortor id sollicitudin. "
 }
 
-# algo that might not return an entire line
+# algo that might not return an entire line as output
 ALGO_NOT_FULL_LINE=[
     'lcs'
 ]
@@ -67,8 +70,16 @@ LINE_EXTRACT_LOWER=3
 
 TTL = 1200 # [seconds] search result cache lifetime
 TTL_CHECKED = 300 # [seconds] purge check interval
+MAX_CACHE_SIZE = 1024
 
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
-# Origins allowed for interact with backend (separate da virgola se sono più di una)
-raw_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:4173")
+# Frontend URL
+raw_frontend_url = os.environ.get("FRONTEND_URL")
+if not raw_frontend_url:
+    raise ValueError("FRONTEND_URL is not define in .env file")
+FRONTEND_URL = raw_frontend_url
+
+# Allowed origin (CORS)
+raw_origins = os.environ.get("ALLOWED_ORIGINS")
+if not raw_origins:
+    raise ValueError("ALLOWED_ORIGINS is not define in .env file")
 ALLOWED_ORIGINS = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]

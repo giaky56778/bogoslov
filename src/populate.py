@@ -234,8 +234,7 @@ def persist_historical_texts(s, source_glob: str = src):
 def persist_highlight(s):
 
     def generate_non_overlapping_ranges(n: int, max_index: int) -> list[tuple[int, int]]:
-
-        #Generata solo per fare test! non si garantisce in nessun caso il fatto che le evidenziazioni abbiano range ammissibile.
+        """Genera fino a n range disgiunti nel dominio [0, max_index)."""
         if n <= 0 or max_index <= 1:
             return []
 
@@ -243,6 +242,7 @@ def persist_highlight(s):
         current_pos = 0
 
         for _ in range(n):
+            # Gap casuale prima del prossimo intervallo.
             current_pos += random.randint(0, 100)
             if current_pos >= max_index:
                 break

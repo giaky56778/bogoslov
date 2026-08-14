@@ -101,9 +101,9 @@ class SearchJsonQuery(BaseModel):
 
     @model_validator(mode="after")
     def check_all_or_none(self):
-        params = (self.original_path, self.original_filename, self.search_start, self.search_end)
+        params = (self.original_path, self.original_filename, self.search_start, self.search_end,self.offset)
         not_none_count = sum(v is not None for v in params)
-        if not_none_count not in (0, 4):
+        if not_none_count not in (0, 5):
             raise ValueError("Every params need to be all None, or all not None")
         return self
     

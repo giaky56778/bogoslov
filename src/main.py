@@ -497,6 +497,22 @@ async def deleteBiblicalText(id: int):
     except ValueError:
         raise HTTPException(status_code=404, detail="Testo non trovato")
 
+@app.get(f"{API_ADDRESS}/text/biblicalWordIdToLine", tags=["info"])
+async def biblicalWordIdToLine(query: Annotated[GetLineFromIndexBQuery, Query()]):
+    try:
+        return JSONResponse(
+            content={
+                 "lineIndex": get_biblical_line_index_by_word(
+                                path=query.original_path,
+                                filename=query.original_filename,
+                                word_id=query.search_start,
+                            )
+            }, 
+            status_code=201
+        )
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Testo non trovato")
+
 if __name__ == "__main__":
     import uvicorn
 

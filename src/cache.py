@@ -5,16 +5,14 @@ from dataclasses import dataclass
 
 from cachetools import TTLCache
 
-from settings import TTL, TTL_CHECKED
+from settings import TTL, TTL_CHECKED, MAX_CACHE_SIZE
 
 @dataclass
 class CachedSearchResult:
     params: dict[str, str]
     result: list[dict[str, object]]
 
-
-MAXSIZE = 1024
-search_result_cache: TTLCache = TTLCache(maxsize=MAXSIZE, ttl=TTL)
+search_result_cache: TTLCache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TTL)
 
 async def get_search_result(name: str) -> CachedSearchResult:
     try:
