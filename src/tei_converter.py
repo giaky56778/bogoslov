@@ -132,19 +132,20 @@ def plain_text_to_rows(filename:str,text: str) -> list[dict]:
         "type": "chapterTitle",
         "text": [{"word":1,"ID":word_id}],
     })
+    word_id += 1
 
-    chapter_number=2
+    chapter_number=1
     line_number=1
     for _, line in enumerate(text.splitlines(), start=1):
         words = line.split()
         if not words:
+            chapter_number+=1
             rows.append({
                 "type": "chapterTitle",
                 "text": [{"word":chapter_number,"ID":word_id}],
             })
             word_id += 1
             line_number=1
-            chapter_number+=1
             continue
 
         row_words = [{"word": word, "ID": word_id + i} for i, word in enumerate(words)]

@@ -1,4 +1,5 @@
-# This compose reuses an image for multiple containers. Build with: docker build -t bogoslov ./src
+# This compose reuses an image for multiple containers. Because of this it should be built in advance with:
+# docker build -t bogoslov .
 
 services:
   proxy:

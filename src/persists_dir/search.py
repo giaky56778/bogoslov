@@ -48,6 +48,7 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
         )
         stmt = select(occupied.label("occupied"))
         run=s.execute(stmt).scalar()
+        #print(run)
         return run
 
     def offsetWordFinder(toFind:str, path, filename, start, end, s):
@@ -60,7 +61,9 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
 
         fixFind=''
         for word in toFind.lower().split():
-            fixFind+=strip_punctuation(word)+' '
+            strip=strip_punctuation(word)
+            if strip:
+                fixFind+=strip+' '
         fixFind=fixFind.strip()
 
         t = ''
@@ -72,19 +75,30 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
                 if word:
                     t += word+' '
         t=t.strip()
+        print(fixFind)
+        print(t.lower())
+        print(splitText)
         charResult = t.lower().find(fixFind)
-        #  0 = from char 0
-        # -1 = don't exist
-        if charResult==-1 or charResult==0:
-            return charResult
+        #  0 = dal carattere 0
+        # -1 = non c'è
+        #print(charResult)
+        if charResult==-1:
+            return -1
+
+        if charResult == 0:
+            return 0
         
         wordPosOffset = 1
+        
+        print('charResult',charResult)
 
         for i in range(len(splitText)):
             value=splitText[i]
             strip=value.strip()
             if not len(strip)==0:
                 charResult -= len(value)+1
+            
+            print(wordPosOffset,')',charResult,value,len(value))
             
             if charResult <=0 and len(splitText[i].strip())!=0:
                 if charResult<0:
@@ -109,6 +123,7 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
             return None
 
         offset = offsetWordFinder(cleaned_found, path, filename, start_line, end_line, s)
+        print('offset',offset)
         if offset == -1:
             return None
 
@@ -145,6 +160,8 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
                 )
             ).first()
 
+            print("qR",qR)
+
             if not qR or qR.startWordId is None:
                 result.append({
                     "text": value,
@@ -168,6 +185,8 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
                 s=s,
             )
 
+            print('highlight:',highlight)
+
             if highlight is None:
                 result.append({
                     "text": value,
@@ -180,7 +199,9 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
                     }
                 })
                 continue
-            
+
+            print('\npath_b=',path_b,'\nfilename_b=',filename_b,'\npath_h=',path,'\nfilename_h=',filename,'\nlowerBound=',highlight["startWordId"],'\nupperBound=',highlight["endWordId"])
+
             if find_already_highlighted(
                 path_h=path,
                 filename_h=filename,

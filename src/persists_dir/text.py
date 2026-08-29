@@ -133,16 +133,16 @@ def get_portion_text_by_tables(
             select(index_model.lineIndex, index_model.wordIndexRange)
             .where(
                 index_model.textId == id,
-                index_model.lineIndex >= line + 1 - LINE_EXTRACT_LOWER,
-                index_model.lineIndex <= line + 1 + LINE_EXTRACT_UPPER,
+                index_model.lineIndex >= line - LINE_EXTRACT_LOWER,
+                index_model.lineIndex <= line + LINE_EXTRACT_UPPER,
             )
         ).all()
         max_index = s.execute(
             select(func.max(index_model.lineIndex))
             .where(
                 index_model.textId == id,
-                index_model.lineIndex >= line + 1 - LINE_EXTRACT_LOWER,
-                index_model.lineIndex <= line + 1 + LINE_EXTRACT_UPPER,
+                index_model.lineIndex >= line - LINE_EXTRACT_LOWER,
+                index_model.lineIndex <= line + LINE_EXTRACT_UPPER,
             )
         ).scalar() or 0
 
