@@ -142,6 +142,7 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
                     func.max(func.upper(ConvertIndexHistorical.wordIndexRange)).label("endWordId"),
                     func.min(ConvertIndexHistorical.lineIndex).label("startLine"),
                     func.max(ConvertIndexHistorical.lineIndex).label("endLine"),
+                    HistoricalText.id.label("idH")
                 )
                 .join(HistoricalText, HistoricalText.id == ConvertIndexHistorical.textId)
                 .where(
@@ -149,11 +150,10 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
                     HistoricalText.filename == filename,
                     ConvertIndexHistorical.lineRange.like(line_index, escape="\\"),
                 )
+                .group_by(HistoricalText.id)
             ).first()
 
-            print("qR",qR)
-
-            if not qR or qR.startWordId is None:
+            if qR is None:
                 result.append({
                     "text": value,
                     "range": {
@@ -161,7 +161,24 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
                         "endWordId": None,
                         "startLine": None,
                         "endLine": None,
-                        "error": -1,
+                        "error": -1
+                    }
+                })
+
+                continue
+
+
+            value['idHistorical'] = qR.idH
+
+            if qR.startWordId is None:
+                result.append({
+                    "text": value,
+                    "range": {
+                        "startWordId": None,
+                        "endWordId": None,
+                        "startLine": None,
+                        "endLine": None,
+                        "error": -1
                     }
                 })
                 continue
@@ -176,8 +193,6 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
                 s=s,
             )
 
-            print('highlight:',highlight)
-
             if highlight is None:
                 result.append({
                     "text": value,
@@ -186,12 +201,10 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
                         "endWordId": int(qR.endWordId)-1,
                         "startLine": qR.startLine,
                         "endLine": qR.endLine,
-                        "error": 0,
+                        "error": 0
                     }
                 })
                 continue
-
-            print('\npath_b=',path_b,'\nfilename_b=',filename_b,'\npath_h=',path,'\nfilename_h=',filename,'\nlowerBound=',highlight["startWordId"],'\nupperBound=',highlight["endWordId"])
 
             if find_already_highlighted(
                 path_h=path,
@@ -202,7 +215,7 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
                 historical_upper_bound=highlight["endWordId"],
                 biblical_lower_bound=startSearch,
                 biblical_upper_bound=endSearch,
-                s=s,
+                 s=s,
             ):
                 result.append({
                     "text": value,
@@ -211,7 +224,7 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
                         "endWordId": None,
                         "startLine": None,
                         "endLine": None,
-                        "error": 1,
+                        "error": 1
                     }
                 })
                 continue
@@ -223,8 +236,10 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
                     "endWordId": highlight["endWordId"],
                     "startLine": qR.startLine,
                     "endLine": qR.endLine,
-                    "error": 0,
-                }
+                    "error": 0
+                 }
             })
+                
         return result
+        
   

@@ -1,5 +1,5 @@
 from psycopg2.extras import NumericRange
-from sqlalchemy import func, select, exists
+from sqlalchemy import func, select, exists, and_, or_
 
 from settings import LINE_EXTRACT_UPPER,LINE_EXTRACT_LOWER
 from db import session_scope
@@ -52,10 +52,16 @@ def get_quotes_portion(idH: int, idB: int, lineB: int, lineH: int) -> dict:
             .join(ConvertIndexBiblical, ConvertIndexBiblical.id == TextHighlights.biblical_start_line)
             .join(ConvertIndexHistorical, ConvertIndexHistorical.id == TextHighlights.historical_start_line)
             .where(
-                ConvertIndexBiblical.lineIndex >= lineB + 1 - LINE_EXTRACT_LOWER,
-                ConvertIndexBiblical.lineIndex <= lineB + 1 + LINE_EXTRACT_UPPER,
-                ConvertIndexHistorical.lineIndex >= lineH + 1 - LINE_EXTRACT_LOWER,
-                ConvertIndexHistorical.lineIndex <= lineH + 1 + LINE_EXTRACT_UPPER,
+                or_(
+                    and_(
+                        ConvertIndexBiblical.lineIndex >= lineB - LINE_EXTRACT_LOWER,
+                        ConvertIndexBiblical.lineIndex <= lineB + LINE_EXTRACT_UPPER
+                    ),
+                    and_(
+                        ConvertIndexHistorical.lineIndex >= lineH - LINE_EXTRACT_LOWER,
+                        ConvertIndexHistorical.lineIndex <= lineH + LINE_EXTRACT_UPPER
+                    )
+                )
             )
         )
         rows = s.scalars(stmt).all()
