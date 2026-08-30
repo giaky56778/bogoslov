@@ -67,47 +67,37 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
         fixFind=fixFind.strip()
 
         t = ''
-        splitText=[]
+        splitText = []
+        char_to_token = {}
+        current_char = 0
+        token_index = 0
+        
         for segment in qT:
             for token in segment["text"]:
                 word = strip_punctuation(token["word"])
                 splitText.append(word)
                 if word:
-                    t += word+' '
-        t=t.strip()
-        print(fixFind)
-        print(t.lower())
-        print(splitText)
+                    char_to_token[current_char] = token_index
+                    t += word + ' '
+                    current_char += len(word) + 1
+                token_index += 1
+        t = t.strip()
+        
         charResult = t.lower().find(fixFind)
-        #  0 = dal carattere 0
-        # -1 = non c'è
-        #print(charResult)
-        if charResult==-1:
+        if charResult == -1:
             return -1
 
-        if charResult == 0:
-            return 0
-        
-        wordPosOffset = 1
-        
-        print('charResult',charResult)
+        matched_token_index = 0
+        end_token_index = 0
+        end_charResult = charResult + len(fixFind) - 1
 
-        for i in range(len(splitText)):
-            value=splitText[i]
-            strip=value.strip()
-            if not len(strip)==0:
-                charResult -= len(value)+1
-            
-            print(wordPosOffset,')',charResult,value,len(value))
-            
-            if charResult <=0 and len(splitText[i].strip())!=0:
-                if charResult<0:
-                    return wordPosOffset-1
-                return wordPosOffset
-            
-            wordPosOffset += 1
-            
-        return wordPosOffset+1
+        for char_idx in sorted(char_to_token.keys()):
+            if char_idx <= charResult:
+                matched_token_index = char_to_token[char_idx]
+            if char_idx <= end_charResult:
+                end_token_index = char_to_token[char_idx]
+                
+        return matched_token_index, end_token_index
     
     def can_highlight_words(
         found: str,
@@ -122,15 +112,16 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
         if not cleaned_found:
             return None
 
-        offset = offsetWordFinder(cleaned_found, path, filename, start_line, end_line, s)
-        print('offset',offset)
-        if offset == -1:
+        offset_result = offsetWordFinder(cleaned_found, path, filename, start_line, end_line, s)
+        if offset_result == -1:
             return None
 
-        words = cleaned_found.split()
+        start_offset, end_offset = offset_result
+        print('offset', start_offset, end_offset)
+
         return {
-            "startWordId": int(start_word_id) + offset,
-            "endWordId": int(start_word_id) + offset + len(words) -1,
+            "startWordId": int(start_word_id) + start_offset,
+            "endWordId": int(start_word_id) + end_offset,
         }
 
     with session_scope() as s:
