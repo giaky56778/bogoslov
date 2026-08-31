@@ -19,6 +19,8 @@ services:
 
   populate:
     image: bogoslov
+    env_file:
+      - .env
     environment:
       - LANG_CORPUS=${CORPUS_LANG}
       - HF_HOME=/models/
@@ -27,7 +29,7 @@ services:
       - ./models/:/models/
       - ./config.toml:/home/app/config.toml:ro
     command: ./populate.py -v -n -e --historical -f
-    # command: ./populate.py --historical -f
+    #command: ./populate.py --historical -f
     # command: ./populate.py --historical -f
     # command: ./populate.py -e 
     # command: tail -f /dev/null

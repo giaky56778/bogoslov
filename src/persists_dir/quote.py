@@ -133,8 +133,8 @@ def list_all_historical_highlights(
                     TextHighlights.historical_range_word,
                     HistoricalText.path.label("path_historical"),
                     HistoricalText.filename.label("filename_historical"),
-                    BiblicalText.text[ConvertIndexBiblical.lineIndex - 1 : ConvertIndexBiblical.lineIndex + 3].label("biblical_text"),
-                    HistoricalText.text[ConvertIndexHistorical.lineIndex - 1 : ConvertIndexHistorical.lineIndex + 3].label("historical_text"),
+                    BiblicalText.text[ConvertIndexBiblical.lineIndex - 1 : ConvertIndexBiblical.lineIndex + 4].label("biblical_text"),
+                    HistoricalText.text[ConvertIndexHistorical.lineIndex - 1 : ConvertIndexHistorical.lineIndex + 4].label("historical_text"),
                 )
                 .join(HistoricalText, HistoricalText.id == TextHighlights.historical_text_id)
                 .join(BiblicalText, BiblicalText.id == TextHighlights.biblical_text_id)
@@ -142,7 +142,7 @@ def list_all_historical_highlights(
                 .join(ConvertIndexHistorical, ConvertIndexHistorical.id == TextHighlights.historical_start_line)
                 .where(
                     BiblicalText.filename == filename,
-                    BiblicalText.path == path,
+                    BiblicalText.path == path
                 )
                 .order_by(HistoricalText.path, HistoricalText.filename)
             )
@@ -151,14 +151,17 @@ def list_all_historical_highlights(
             key = (row.path_historical, row.filename_historical)
             if key not in groups:
                 groups[key] = []
+
             groups[key].append({
                 "color_id": row.color_id,
                 "biblical_start_line":   row.biblical_start_line,
                 "historical_start_line": row.historical_start_line,
                 "biblical_range_word":   {"startWord": row.biblical_range_word.lower, "endWord": row.biblical_range_word.upper-1},
                 "historical_range_word": {"startWord": row.historical_range_word.lower, "endWord": row.historical_range_word.upper-1},
-                "biblical_text":         row.biblical_text,
-                "historical_text":       row.historical_text,
+                "biblical_text":         row.biblical_text[0:5],
+                "historical_text":       row.historical_text[0:5],
+                "biblical_more_line":    len(row.biblical_text)==6,
+                "historical_more_line":  len(row.historical_text)==6
             })
 
         return [
@@ -199,7 +202,7 @@ def insert_new_highlights(urn_h,start_h,end_h,line_start_h,b_id_text,start_b,end
             select(ConvertIndexBiblical.id)
             .where(
                 ConvertIndexBiblical.textId == b_id_text,
-                ConvertIndexBiblical.wordIndexRange.op("&&")(func.int4range(start_b, end_b+1))
+                ConvertIndexBiblical.wordIndexRange.op("@>")(start_b)
             )
         ).scalar_one()
 

@@ -5,9 +5,10 @@
 Schema needs to be preloaded.
 
 Usage:
-    populate.py [--historical] [-f | --force]
+    populate.py [-x | --example] [-f | --force]
+    populate.py [-t | --historical] [-v | --verses] [-n | --ngrams] [-e | --embeddings] [-f | --force]
+    populate.py [-t | --historical] [-x | --example] [-v | --verses] [-n | --ngrams] [-e | --embeddings] [-f | --force]
     populate.py [-v | --verses] [-n | --ngrams] [-e | --embeddings] [-f | --force]
-    populate.py [--historical] [-v | --verses] [-n | --ngrams] [-e | --embeddings] [-f | --force]
     populate.py [-v | --verses] [-n | --ngrams] [--embedding=<name>] [-f | --force]
     
     populate.py (-h | --help)
@@ -20,7 +21,8 @@ Options:
     -n --ngrams          Generate index for Ngrams (requires index for Verses).
     -e --embeddings      Generate index for Embeddings (requires index for Verses).
     --embedding=<name>   Generate index for Embeddings only for model <name> (requires index for Verses).
-    -t --historical      Generate historical texts and highlight data.
+    -t --historical      Import historical texts.
+    -x --example         Import example text and generate random highlights to show how the project work
     -f --force           Force regeneration even if it exists already.
 
 """
@@ -177,7 +179,7 @@ if __name__ == "__main__":
                 print(repr(ve))
 
 ###
-def persist_historical_texts(s, source_glob: str = src):
+def persist_texts(s, ConvertIndex, Text, source_glob: str = src):
     for xml_path in glob(source_glob):
         path_obj = Path(xml_path)
         corpus_path = str(path_obj.parent)
@@ -186,7 +188,7 @@ def persist_historical_texts(s, source_glob: str = src):
         text = convert_tei((corpus_path, filename))
         chapters = calculate_chapter_index(text)
 
-        historical_text = HistoricalText(
+        historical_text = Text(
                 path=corpus_path.removeprefix('/corpora/'),
                 filename=filename,
                 text=text,
@@ -198,7 +200,7 @@ def persist_historical_texts(s, source_glob: str = src):
         for value in text:
             if value['type']=='text' and value["text"]:
                 s.add(
-                    ConvertIndexHistorical(
+                    ConvertIndex(
                         textId              = historical_text.id,
                         lineRange           = value['id'],
                         lineIndex           = j,
@@ -206,29 +208,6 @@ def persist_historical_texts(s, source_glob: str = src):
                     )
                 )
             j+=1
-
-        biblical_text = BiblicalText(
-            path=corpus_path.removeprefix('/corpora/'),
-            filename=filename+" b",
-            text=text,
-            chapters=chapters
-        )
-        s.add(biblical_text)
-        s.flush()
-        j=0
-        for value in text:
-            if value['type']=='text' and value["text"]:
-                s.add(
-                    ConvertIndexBiblical(
-                        textId              = biblical_text.id,
-                        lineRange           = value['id'],
-                        lineIndex           = j,
-                        wordIndexRange      = NumericRange(value["text"][0]["ID"],value["text"][-1]["ID"]+1)
-                    )
-                )
-            j+=1
-        s.commit()
-        print(f"Loaded {corpus_path}/{filename}")
 
 
 def persist_highlight(s):
@@ -329,19 +308,25 @@ if __name__ == "__main__":
     Base.metadata.create_all(engine)
     s = Session()
 
+    if args["--example"]:
+        if args["--force"]:
+            s.execute(delete(TextHighlights))
+            s.execute(delete(ConvertIndexBiblical))
+            s.execute(delete(HighlightColors))
+            s.execute(delete(BiblicalText))
+
+        print("# Loading Example Texts...")
+        persist_texts(s, ConvertIndexBiblical, BiblicalText, source_glob=src)
+        persist_highlight(s)
+
     if args["--historical"]:
         if args["--force"]:
             print("Cleaning up preloaded historical texts.")
-            s.execute(delete(TextHighlights))
-            s.execute(delete(ConvertIndexBiblical))
             s.execute(delete(ConvertIndexHistorical))
-            s.execute(delete(HighlightColors))
-            s.execute(delete(BiblicalText))
             s.execute(delete(HistoricalText))
 
         print("# Loading Historical Texts...")
-        persist_historical_texts(s, src)
-        persist_highlight(s)
+        persist_texts(s, ConvertIndexHistorical, HistoricalText, source_glob=src)
 
 
     if args["--verses"]:
