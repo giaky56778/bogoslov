@@ -170,31 +170,31 @@ def get_text_name_by_table(table):
         rows = s.execute(select(table.id, table.filename, table.path)).all()
         return compose_grouped_text(rows)
 
-def biblical_text_exists(path: str, filename: str) -> bool:
+def historical_text_exists(path: str, filename: str) -> bool:
     with session_scope() as s:
         return s.execute(
-            select(BiblicalText.id).where(
-                BiblicalText.path == path,
-                BiblicalText.filename == filename,
+            select(HistoricalText.id).where(
+                HistoricalText.path == path,
+                HistoricalText.filename == filename,
             )
         ).first() is not None
 
-def persist_biblical_text(path: str, filename: str, text: list[dict]) -> int:
+def persist_historical_text(path: str, filename: str, text: list[dict]) -> int:
     with session_scope() as s:
-        biblical_text = BiblicalText(
+        historical_text = HistoricalText(
             path=path,
             filename=filename,
             text=text,
             chapters=calculate_chapter_index(text),
         )
-        s.add(biblical_text)
+        s.add(historical_text)
         s.flush()
 
         for line_index, value in enumerate(text):
             if value["type"] == "text" and value["text"]:
                 s.add(
-                    ConvertIndexBiblical(
-                        textId=biblical_text.id,
+                    ConvertIndexHistorical(
+                        textId=historical_text.id,
                         lineRange=value["id"],
                         lineIndex=line_index,
                         wordIndexRange=NumericRange(value["text"][0]["ID"], value["text"][-1]["ID"] + 1),
@@ -202,12 +202,12 @@ def persist_biblical_text(path: str, filename: str, text: list[dict]) -> int:
                 )
 
         s.commit()
-        s.refresh(biblical_text)
-        return biblical_text.id
+        s.refresh(historical_text)
+        return historical_text.id
 
 def delete_text(id: int):
     with session_scope() as s:
-        stmt = select(BiblicalText).where(BiblicalText.id == id)
+        stmt = select(HistoricalText).where(HistoricalText.id == id)
         deleteMe = s.scalar(stmt)
         if deleteMe is None:
             raise ValueError("Testo non trovato")

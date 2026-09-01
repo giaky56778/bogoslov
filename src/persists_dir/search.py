@@ -12,33 +12,33 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
         filename_h: str,
         path_b: str,
         filename_b: str,
-        historical_lower_bound: int,
-        historical_upper_bound: int,
         biblical_lower_bound: int,
         biblical_upper_bound: int,
+        historical_lower_bound: int,
+        historical_upper_bound: int,
         s
     ):
         occupied = exists(
             select(1)
             .select_from(TextHighlights)
-            .join(HistoricalText, TextHighlights.historical_text_id == HistoricalText.id)
             .join(BiblicalText, TextHighlights.biblical_text_id == BiblicalText.id)
+            .join(HistoricalText, TextHighlights.historical_text_id == HistoricalText.id)
             .where(
                 and_(
-                    HistoricalText.path == path_h,
-                    HistoricalText.filename == filename_h,
-                    BiblicalText.filename == filename_b,
-                    BiblicalText.path == path_b,
+                    BiblicalText.path == path_h,
+                    BiblicalText.filename == filename_h,
+                    HistoricalText.filename == filename_b,
+                    HistoricalText.path == path_b,
                     or_(
                         func.coalesce(
-                            TextHighlights.historical_range_word.op("&&")(
-                                func.int4range(historical_lower_bound, historical_upper_bound+1)
+                            TextHighlights.biblical_range_word.op("&&")(
+                                func.int4range(biblical_lower_bound, biblical_upper_bound+1)
                             ),
                             False,
                         ),
                         func.coalesce(
-                            TextHighlights.biblical_range_word.op("&&")(
-                                func.int4range(biblical_lower_bound, biblical_upper_bound+1)
+                            TextHighlights.historical_range_word.op("&&")(
+                                func.int4range(historical_lower_bound, historical_upper_bound+1)
                             ),
                             False,
                         ),
@@ -53,8 +53,8 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
 
     def offsetWordFinder(toFind:str, path, filename, start, end, s):
         stmt = (
-            select(HistoricalText.text[start+1:end+1])
-            .where(HistoricalText.path == path, HistoricalText.filename == filename)
+            select(BiblicalText.text[start+1:end+1])
+            .where(BiblicalText.path == path, BiblicalText.filename == filename)
         )
         qT = s.execute(stmt).scalar_one()
 
@@ -138,19 +138,19 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
 
             qR = s.execute(
                 select(
-                    func.min(func.lower(ConvertIndexHistorical.wordIndexRange)).label("startWordId"),
-                    func.max(func.upper(ConvertIndexHistorical.wordIndexRange)).label("endWordId"),
-                    func.min(ConvertIndexHistorical.lineIndex).label("startLine"),
-                    func.max(ConvertIndexHistorical.lineIndex).label("endLine"),
-                    HistoricalText.id.label("idH")
+                    func.min(func.lower(ConvertIndexBiblical.wordIndexRange)).label("startWordId"),
+                    func.max(func.upper(ConvertIndexBiblical.wordIndexRange)).label("endWordId"),
+                    func.min(ConvertIndexBiblical.lineIndex).label("startLine"),
+                    func.max(ConvertIndexBiblical.lineIndex).label("endLine"),
+                    BiblicalText.id.label("idH")
                 )
-                .join(HistoricalText, HistoricalText.id == ConvertIndexHistorical.textId)
+                .join(BiblicalText, BiblicalText.id == ConvertIndexBiblical.textId)
                 .where(
-                    HistoricalText.path == path,
-                    HistoricalText.filename == filename,
-                    ConvertIndexHistorical.lineRange.like(line_index, escape="\\"),
+                    BiblicalText.path == path,
+                    BiblicalText.filename == filename,
+                    ConvertIndexBiblical.lineRange.like(line_index, escape="\\"),
                 )
-                .group_by(HistoricalText.id)
+                .group_by(BiblicalText.id)
             ).first()
 
             if qR is None:
@@ -168,7 +168,7 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
                 continue
 
 
-            value['idHistorical'] = qR.idH
+            value['idBiblical'] = qR.idH
 
             if qR.startWordId is None:
                 result.append({
@@ -211,10 +211,10 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
                 filename_h=filename,
                 path_b=path_b,
                 filename_b=filename_b,
-                historical_lower_bound=highlight["startWordId"],
-                historical_upper_bound=highlight["endWordId"],
-                biblical_lower_bound=startSearch,
-                biblical_upper_bound=endSearch,
+                biblical_lower_bound=highlight["startWordId"],
+                biblical_upper_bound=highlight["endWordId"],
+                historical_lower_bound=startSearch,
+                historical_upper_bound=endSearch,
                  s=s,
             ):
                 result.append({

@@ -15,8 +15,8 @@ vdims = 768
 
 ###
 
-class HistoricalText(Base):
-    __tablename__ = "historical_texts"
+class BiblicalText(Base):
+    __tablename__ = "biblical_texts"
 
     id        = Column(Integer, primary_key=True, autoincrement=True)
     path      = Column(String, nullable=False)
@@ -31,23 +31,11 @@ class HistoricalText(Base):
     def __str__(self):
         return str({c.name: getattr(self, c.name) for c in self.__table__.columns})
     
-class ConvertIndexHistorical(Base):
-    __tablename__ = "convert_index_historical"
-
-    id                  = Column(Integer, primary_key=True, autoincrement=True)
-    textId              = Column(Integer,ForeignKey("historical_texts.id"),nullable=False)
-    lineIndex           = Column(Integer,nullable=False)
-    lineRange           = Column(String,nullable=False)
-    wordIndexRange      = Column(INT4RANGE,nullable=False)
-
-    def __str__(self):
-        return str({c.name: getattr(self, c.name) for c in self.__table__.columns})
-
 class ConvertIndexBiblical(Base):
     __tablename__ = "convert_index_biblical"
 
     id                  = Column(Integer, primary_key=True, autoincrement=True)
-    textId              = Column(Integer,ForeignKey("biblical_texts.id", ondelete="CASCADE"),nullable=False)
+    textId              = Column(Integer,ForeignKey("biblical_texts.id"),nullable=False)
     lineIndex           = Column(Integer,nullable=False)
     lineRange           = Column(String,nullable=False)
     wordIndexRange      = Column(INT4RANGE,nullable=False)
@@ -55,8 +43,20 @@ class ConvertIndexBiblical(Base):
     def __str__(self):
         return str({c.name: getattr(self, c.name) for c in self.__table__.columns})
 
-class BiblicalText(Base):
-    __tablename__ = "biblical_texts"
+class ConvertIndexHistorical(Base):
+    __tablename__ = "convert_index_historical"
+
+    id                  = Column(Integer, primary_key=True, autoincrement=True)
+    textId              = Column(Integer,ForeignKey("historical_texts.id", ondelete="CASCADE"),nullable=False)
+    lineIndex           = Column(Integer,nullable=False)
+    lineRange           = Column(String,nullable=False)
+    wordIndexRange      = Column(INT4RANGE,nullable=False)
+
+    def __str__(self):
+        return str({c.name: getattr(self, c.name) for c in self.__table__.columns})
+
+class HistoricalText(Base):
+    __tablename__ = "historical_texts"
 
     id        = Column(Integer, primary_key=True, autoincrement=True)
     path      = Column(String, nullable=False)
@@ -94,12 +94,12 @@ class TextHighlights(Base):
 
     id                    = Column(Integer, primary_key=True, autoincrement=True)
     color_id              = Column(Integer,ForeignKey("highlight_colors.id"),nullable=False)
-    historical_text_id    = Column(Integer,ForeignKey("historical_texts.id"),nullable=False)
-    biblical_text_id      = Column(Integer,ForeignKey('biblical_texts.id', ondelete="CASCADE"),nullable=False)
-    biblical_range_word   = Column(INT4RANGE,nullable=False)
-    historical_range_word = Column(INT4RANGE,nullable=False)
-    biblical_start_line   = Column(Integer,ForeignKey("convert_index_biblical.id"),nullable=False)
-    historical_start_line = Column(Integer,ForeignKey("convert_index_historical.id"),nullable=False)
+    biblical_text_id    = Column(Integer,ForeignKey("biblical_texts.id"),nullable=False)
+    historical_text_id      = Column(Integer,ForeignKey('historical_texts.id', ondelete="CASCADE"),nullable=False)
+    historical_range_word   = Column(INT4RANGE,nullable=False)
+    biblical_range_word = Column(INT4RANGE,nullable=False)
+    historical_start_line   = Column(Integer,ForeignKey("convert_index_historical.id"),nullable=False)
+    biblical_start_line = Column(Integer,ForeignKey("convert_index_biblical.id"),nullable=False)
 
     def __str__(self):
         return str({c.name: getattr(self, c.name) for c in self.__table__.columns})

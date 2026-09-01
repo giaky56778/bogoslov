@@ -73,7 +73,7 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
     openapi_tags=[
-        {"name": "text", "description": "API for interact with biblical and historical text"},
+        {"name": "text", "description": "API for interact with historical and biblical text"},
         {"name": "quote", "description": "API for interact with confirmed quotes of the text."},
         {"name": "search", "description": "API for search around primary text."},
         {"name": "info", "description": "API for metadata and auxiliary data."}
@@ -162,53 +162,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get(f"{API_ADDRESS}/text/getHistoricalText/", tags=["text"])
-async def getHistoricalText(query: Annotated[TextQuery, Query()]):
-            
-    try:
-        text, chapter, index, textId = get_full_text_by_tables(HistoricalText, ConvertIndexHistorical, query)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Testo non trovato")
-
-    return JSONResponse(
-        content={
-            "text": text,
-            "chapter": chapter,
-            "index": index,
-            "textId": textId
-        },
-        status_code=200,
-    )
-
-@app.get(f"{API_ADDRESS}/text/getHistoricalTextPortion/", tags=["text"])
-async def getHistoricalTextPortion(query: Annotated[TextPortionQuery, Query()]):
-            
-    try:
-        text, chapter, index, textId = get_portion_text_by_tables(HistoricalText, ConvertIndexHistorical, query)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Testo non trovato")
-
-    return JSONResponse(
-        content={
-            "text": text,
-            "chapter": chapter,
-            "index": index,
-            "textId": textId
-        },
-        status_code=200,
-    )
-
-@app.get(f"{API_ADDRESS}/text/getHistoricalTextNames", tags=["text"])
-async def getHistoricalTextNames():
-    result = get_text_name_by_table(HistoricalText)
-
-    return JSONResponse(
-        content=result,
-        status_code=200
-    )
-
 @app.get(f"{API_ADDRESS}/text/getBiblicalText/", tags=["text"])
 async def getBiblicalText(query: Annotated[TextQuery, Query()]):
+            
     try:
         text, chapter, index, textId = get_full_text_by_tables(BiblicalText, ConvertIndexBiblical, query)
     except ValueError:
@@ -221,13 +177,40 @@ async def getBiblicalText(query: Annotated[TextQuery, Query()]):
             "index": index,
             "textId": textId
         },
-        status_code=200
+        status_code=200,
     )
 
 @app.get(f"{API_ADDRESS}/text/getBiblicalTextPortion/", tags=["text"])
 async def getBiblicalTextPortion(query: Annotated[TextPortionQuery, Query()]):
+            
     try:
         text, chapter, index, textId = get_portion_text_by_tables(BiblicalText, ConvertIndexBiblical, query)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Testo non trovato")
+
+    return JSONResponse(
+        content={
+            "text": text,
+            "chapter": chapter,
+            "index": index,
+            "textId": textId
+        },
+        status_code=200,
+    )
+
+@app.get(f"{API_ADDRESS}/text/getBiblicalTextNames", tags=["text"])
+async def getBiblicalTextNames():
+    result = get_text_name_by_table(BiblicalText)
+
+    return JSONResponse(
+        content=result,
+        status_code=200
+    )
+
+@app.get(f"{API_ADDRESS}/text/getHistoricalText/", tags=["text"])
+async def getHistoricalText(query: Annotated[TextQuery, Query()]):
+    try:
+        text, chapter, index, textId = get_full_text_by_tables(HistoricalText, ConvertIndexHistorical, query)
     except ValueError:
         raise HTTPException(status_code=404, detail="Testo non trovato")
 
@@ -241,9 +224,26 @@ async def getBiblicalTextPortion(query: Annotated[TextPortionQuery, Query()]):
         status_code=200
     )
 
-@app.get(f"{API_ADDRESS}/text/getBiblicalTextNames", tags=["text"])
-async def getBiblicalTextNames():
-    result = get_text_name_by_table(BiblicalText)
+@app.get(f"{API_ADDRESS}/text/getHistoricalTextPortion/", tags=["text"])
+async def getHistoricalTextPortion(query: Annotated[TextPortionQuery, Query()]):
+    try:
+        text, chapter, index, textId = get_portion_text_by_tables(HistoricalText, ConvertIndexHistorical, query)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Testo non trovato")
+
+    return JSONResponse(
+        content={
+            "text": text,
+            "chapter": chapter,
+            "index": index,
+            "textId": textId
+        },
+        status_code=200
+    )
+
+@app.get(f"{API_ADDRESS}/text/getHistoricalTextNames", tags=["text"])
+async def getHistoricalTextNames():
+    result = get_text_name_by_table(HistoricalText)
 
     return JSONResponse(
         content=result,
@@ -252,7 +252,7 @@ async def getBiblicalTextNames():
 
 @app.get(f"{API_ADDRESS}/quote/getQuotes", tags=["quote"])
 async def getQuotes(query: Annotated[QuotesQuery, Query()]):
-    result=get_quotes(query.historical_text_id,query.biblical_text_id)
+    result=get_quotes(query.biblical_text_id,query.historical_text_id)
     if len(result)==0:
         return Response(status_code=204)
 
@@ -263,7 +263,7 @@ async def getQuotes(query: Annotated[QuotesQuery, Query()]):
 
 @app.get(f"{API_ADDRESS}/quote/getQuotesPortion", tags=["quote"])
 async def getQuotesPortion(query: Annotated[QuotesQueryPartition, Query()]):
-    result=get_quotes_portion(query.historical_text_id,query.biblical_text_id,query.lineB,query.lineH)
+    result=get_quotes_portion(query.biblical_text_id,query.historical_text_id,query.lineB,query.lineH)
     if len(result)==0:
         return Response(status_code=204)
 
@@ -393,7 +393,7 @@ async def getSearchJson(query: Annotated[SearchJsonQuery, Query()]):
             endSearch=query.search_end
         )
 
-        lineIndex=get_biblical_line_index_by_word(
+        lineIndex=get_historical_line_index_by_word(
             path=query.original_path,
             filename=query.original_filename,
             word_id=query.search_start,
@@ -420,10 +420,10 @@ async def getToolTip():
     }
     return JSONResponse(content= result, status_code=200)
 
-@app.get(f"{API_ADDRESS}/info/getAllHighlightHistorical", tags=["quote"])
-async def getAllHighlightHistorical(query: Annotated[HighlightHistoricalQuery, Query()]):
+@app.get(f"{API_ADDRESS}/info/getAllHighlightBiblical", tags=["quote"])
+async def getAllHighlightBiblical(query: Annotated[HighlightBiblicalQuery, Query()]):
     return JSONResponse(
-        content=list_all_historical_highlights(path=query.path, filename=query.filename),
+        content=list_all_biblical_highlights(path=query.path, filename=query.filename),
         status_code=200,
     )
 
@@ -446,7 +446,7 @@ async def saveQuote(body: QuoteCreate):
     return Response(status_code=201)
 
 @app.post(f"{API_ADDRESS}/text/upload", tags=["text"])
-async def uploadBiblicalText(
+async def uploadHistoricalText(
     path: str = Form(...),
     filename: str = Form(...),
     file: UploadFile | None = File(None),
@@ -460,8 +460,8 @@ async def uploadBiblicalText(
     validate_path_component(path)
     validate_path_component(filename)
 
-    if biblical_text_exists(path, filename):
-        raise HTTPException(status_code=409, detail="Biblical text already exists for this path/filename")
+    if historical_text_exists(path, filename):
+        raise HTTPException(status_code=409, detail="Historical text already exists for this path/filename")
 
     if file is not None and (file.filename or "").lower().endswith((".xml")):
         try:
@@ -481,28 +481,28 @@ async def uploadBiblicalText(
     if not rows:
         raise HTTPException(status_code=422, detail="No text content found")
 
-    biblical_id = persist_biblical_text(path, filename, rows)
+    historical_id = persist_historical_text(path, filename, rows)
     return JSONResponse(
         content={
-            "id": biblical_id
+            "id": historical_id
         }, 
         status_code=201
     )
     
-@app.delete(f"{API_ADDRESS}/text/deleteBiblicalText", tags=["text"])
-async def deleteBiblicalText(id: int):
+@app.delete(f"{API_ADDRESS}/text/deleteHistoricalText", tags=["text"])
+async def deleteHistoricalText(id: int):
     try:
         delete_text(id)
         return Response(status_code=204)
     except ValueError:
         raise HTTPException(status_code=404, detail="Testo non trovato")
 
-@app.get(f"{API_ADDRESS}/text/biblicalWordIdToLine", tags=["info"])
-async def biblicalWordIdToLine(query: Annotated[GetLineFromIndexBQuery, Query()]):
+@app.get(f"{API_ADDRESS}/text/historicalWordIdToLine", tags=["info"])
+async def historicalWordIdToLine(query: Annotated[GetLineFromIndexBQuery, Query()]):
     try:
         return JSONResponse(
             content={
-                 "lineIndex": get_biblical_line_index_by_word(
+                 "lineIndex": get_historical_line_index_by_word(
                                 path=query.original_path,
                                 filename=query.original_filename,
                                 word_id=query.search_start,

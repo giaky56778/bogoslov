@@ -6,8 +6,8 @@ Schema needs to be preloaded.
 
 Usage:
     populate.py [-x | --example] [-f | --force]
-    populate.py [-t | --historical] [-v | --verses] [-n | --ngrams] [-e | --embeddings] [-f | --force]
-    populate.py [-t | --historical] [-x | --example] [-v | --verses] [-n | --ngrams] [-e | --embeddings] [-f | --force]
+    populate.py [-t | --biblical] [-v | --verses] [-n | --ngrams] [-e | --embeddings] [-f | --force]
+    populate.py [-t | --biblical] [-x | --example] [-v | --verses] [-n | --ngrams] [-e | --embeddings] [-f | --force]
     populate.py [-v | --verses] [-n | --ngrams] [-e | --embeddings] [-f | --force]
     populate.py [-v | --verses] [-n | --ngrams] [--embedding=<name>] [-f | --force]
     
@@ -21,7 +21,7 @@ Options:
     -n --ngrams          Generate index for Ngrams (requires index for Verses).
     -e --embeddings      Generate index for Embeddings (requires index for Verses).
     --embedding=<name>   Generate index for Embeddings only for model <name> (requires index for Verses).
-    -t --historical      Import historical texts.
+    -t --biblical      Import biblical texts.
     -x --example         Import example text and generate random highlights to show how the project work
     -f --force           Force regeneration even if it exists already.
 
@@ -188,27 +188,35 @@ def persist_texts(s, ConvertIndex, Text, source_glob: str = src):
         text = convert_tei((corpus_path, filename))
         chapters = calculate_chapter_index(text)
 
-        historical_text = Text(
+        biblical_text = Text(
                 path=corpus_path.removeprefix('/corpora/'),
                 filename=filename,
                 text=text,
                 chapters=chapters
             )
-        s.add(historical_text)
+        s.add(biblical_text)
         s.flush()
         j=0
         for value in text:
             if value['type']=='text' and value["text"]:
                 s.add(
                     ConvertIndex(
-                        textId              = historical_text.id,
+                        textId              = biblical_text.id,
                         lineRange           = value['id'],
                         lineIndex           = j,
                         wordIndexRange      = NumericRange(value["text"][0]["ID"],value["text"][-1]["ID"]+1)
                     )
                 )
             j+=1
+    s.commit()
 
+
+def persist_color(s):
+    # For colors
+    for i in range(1, 6):
+        color = HighlightColors(id=i)
+        s.add(color)
+    s.commit()
 
 def persist_highlight(s):
 
@@ -237,30 +245,24 @@ def persist_highlight(s):
 
     #-------------------------------------
 
-    # For colors
-    for i in range(1, 6):
-        color = HighlightColors(id=i)
-        s.add(color)
-    s.commit()
-
     # For highlight
     qH=s.query(
-            HistoricalText.id,
-            func.array_length(HistoricalText.text, 1).label("max_index")
-        ).all()
-    qB=s.query(
             BiblicalText.id,
             func.array_length(BiblicalText.text, 1).label("max_index")
         ).all()
+    qB=s.query(
+            HistoricalText.id,
+            func.array_length(HistoricalText.text, 1).label("max_index")
+        ).all()
 
     for h_text in qH:
-        h_convert_idx = s.query(ConvertIndexHistorical).filter(
-            ConvertIndexHistorical.textId == h_text.id
+        h_convert_idx = s.query(ConvertIndexBiblical).filter(
+            ConvertIndexBiblical.textId == h_text.id
         ).all()
 
         for b_text in qB:
-            b_convert_idx = s.query(ConvertIndexBiblical).filter(
-                ConvertIndexBiblical.textId == b_text.id
+            b_convert_idx = s.query(ConvertIndexHistorical).filter(
+                ConvertIndexHistorical.textId == b_text.id
             ).all()
 
             num_highlights = random.randint(0, 10)
@@ -288,12 +290,12 @@ def persist_highlight(s):
 
                 highlight = TextHighlights(
                     color_id              = random.randint(1, random.randint(1, 5)),
-                    historical_text_id    = h_text.id,
-                    biblical_text_id      = b_text.id,
-                    historical_range_word = NumericRange(left_ranges[i][0], left_ranges[i][1]),
-                    biblical_range_word   = NumericRange(right_ranges[i][0], right_ranges[i][1]),
-                    historical_start_line = hist_start,
-                    biblical_start_line   = bibl_start,
+                    biblical_text_id    = h_text.id,
+                    historical_text_id      = b_text.id,
+                    biblical_range_word = NumericRange(left_ranges[i][0], left_ranges[i][1]),
+                    historical_range_word   = NumericRange(right_ranges[i][0], right_ranges[i][1]),
+                    biblical_start_line = hist_start,
+                    historical_start_line   = bibl_start,
                 )
                 s.add(highlight)
 
@@ -311,22 +313,24 @@ if __name__ == "__main__":
     if args["--example"]:
         if args["--force"]:
             s.execute(delete(TextHighlights))
-            s.execute(delete(ConvertIndexBiblical))
-            s.execute(delete(HighlightColors))
-            s.execute(delete(BiblicalText))
-
-        print("# Loading Example Texts...")
-        persist_texts(s, ConvertIndexBiblical, BiblicalText, source_glob=src)
-        persist_highlight(s)
-
-    if args["--historical"]:
-        if args["--force"]:
-            print("Cleaning up preloaded historical texts.")
             s.execute(delete(ConvertIndexHistorical))
             s.execute(delete(HistoricalText))
 
-        print("# Loading Historical Texts...")
+        print("# Loading Example Texts...")
         persist_texts(s, ConvertIndexHistorical, HistoricalText, source_glob=src)
+        persist_highlight(s)
+
+    if args["--biblical"]:
+        if args["--force"]:
+            print("Cleaning up preloaded biblical texts.")
+            s.execute(delete(TextHighlights))
+            s.execute(delete(ConvertIndexBiblical))
+            s.execute(delete(BiblicalText))
+            s.execute(delete(HighlightColors))
+
+        print("# Loading Biblical Texts...")
+        persist_texts(s, ConvertIndexBiblical, BiblicalText, source_glob=src)
+        persist_color(s)
 
 
     if args["--verses"]:

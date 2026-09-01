@@ -8,8 +8,8 @@ class RangeSchema(BaseModel):
 
 class HighlightUpdate(BaseModel):
     color:       int | None = None
-    historical:  RangeSchema | None = None
-    biblical:    RangeSchema | None = None
+    biblical:  RangeSchema | None = None
+    historical:    RangeSchema | None = None
 
 class HybridResult(BaseModel):
     urn: str
@@ -61,12 +61,12 @@ class TextPortionQuery(BaseModel):
         return self
 
 class QuotesQuery(BaseModel):
-    historical_text_id: int
     biblical_text_id: int
+    historical_text_id: int
 
 class QuotesQueryPartition(BaseModel):
-    historical_text_id: int
     biblical_text_id: int
+    historical_text_id: int
     lineB: int
     lineH: int
 
@@ -107,7 +107,7 @@ class SearchJsonQuery(BaseModel):
             raise ValueError("Every params need to be all None, or all not None")
         return self
     
-class HighlightHistoricalQuery(BaseModel):
+class HighlightBiblicalQuery(BaseModel):
     filename: str
     path: str
 

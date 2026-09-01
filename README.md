@@ -1,6 +1,6 @@
 # BogoSlov
 
-Biblical OriGins in slavOnic texts - Systems for Language-modelled Observation and Verification
+Historical OriGins in slavOnic texts - Systems for Language-modelled Observation and Verification
 
 A [SEED4EU+](https://4euplus.eu/4EU-1150.html) project. For further information, see (Ruskov et al 2025).
 
@@ -33,7 +33,7 @@ Requirements [python](https://www.python.org) and [docker compose](https://docs.
 
 ## Language support
 
-A starting point for a new setup is the choice of language. This is relevant for the corpora and the database derived from them. To support a language the following are needed: alphabet.${CORPUS_LANG}.tsv (for examples see [slavonic](static/alphabet.chu.tsv) and [latin](static/alphabet.lat.tsv)) and a lang_.${CORPUS_LANG}.py. For this you would need to specify HuggingFace and [UDPipe](https://lindat.mff.cuni.cz/services/udpipe/) models. Currently, `chu`, `lat` and `grc` are supported. Finally, a `static/${CORPUS_LANG}.css` is needed in case historical fonts are preferred.
+A starting point for a new setup is the choice of language. This is relevant for the corpora and the database derived from them. To support a language the following are needed: alphabet.${CORPUS_LANG}.tsv (for examples see [slavonic](static/alphabet.chu.tsv) and [latin](static/alphabet.lat.tsv)) and a lang_.${CORPUS_LANG}.py. For this you would need to specify HuggingFace and [UDPipe](https://lindat.mff.cuni.cz/services/udpipe/) models. Currently, `chu`, `lat` and `grc` are supported. Finally, a `static/${CORPUS_LANG}.css` is needed in case biblical fonts are preferred.
 
 ## Preparing the data {#datapreparation}
 
@@ -64,7 +64,7 @@ Open http://localhost:8780 with your browser.
 
 # Corpora
 
-The N-gram approach relies on lemmatisation. This is the reason why we prefer adopting texts from treebanks, and PROIEL and its sister projects in particular. In such treebanks lemmatisation was manually verified. Automatic lemmatization is used for other corpora, but due to variation in historical languages, this is less reliable.
+The N-gram approach relies on lemmatisation. This is the reason why we prefer adopting texts from treebanks, and PROIEL and its sister projects in particular. In such treebanks lemmatisation was manually verified. Automatic lemmatization is used for other corpora, but due to variation in biblical languages, this is less reliable.
 
 ## Adding a new corpus
 
@@ -74,7 +74,7 @@ To use the data, it needs to be available in .html format for viewing (see the c
 
 # Algorithms
 
-It is important to note that due to the specifics of biblical texts, we consider verses as the units of meaning. This means that we tokenise by verses and do not consider potential matches that cross verse boundaries. We do not 
+It is important to note that due to the specifics of historical texts, we consider verses as the units of meaning. This means that we tokenise by verses and do not consider potential matches that cross verse boundaries. We do not 
 
 ## Regex - regular expresssions
 
@@ -116,4 +116,4 @@ To add a new algorithm, it needs to implement the logic of `app_*.py`. The find(
 
 # Bibliography
 
-Ruskov, Mikulka, Podtergera, Gavrilkov & Thompson (2025). Quotes at the Fingertips: The BogoSlov Project’s Combined Approach towards Identification of Biblical Material in Old Church Slavonic Texts. In Proceedings of the 21st Conference on Information and Research Science Connecting to Digital and Library Science. CEUR-WS. https://ceur-ws.org/Vol-3937/short8.pdf ([bibtex](static/references.bib))
+Ruskov, Mikulka, Podtergera, Gavrilkov & Thompson (2025). Quotes at the Fingertips: The BogoSlov Project’s Combined Approach towards Identification of Historical Material in Old Church Slavonic Texts. In Proceedings of the 21st Conference on Information and Research Science Connecting to Digital and Library Science. CEUR-WS. https://ceur-ws.org/Vol-3937/short8.pdf ([bibtex](static/references.bib))
