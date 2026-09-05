@@ -184,7 +184,7 @@ async def getBiblicalText(query: Annotated[TextQuery, Query()]):
 async def getBiblicalTextPortion(query: Annotated[TextPortionQuery, Query()]):
             
     try:
-        text, chapter, index, textId = get_portion_text_by_tables(BiblicalText, ConvertIndexBiblical, query)
+        text, chapter, index, textId, startIndex = get_portion_text_by_tables(BiblicalText, ConvertIndexBiblical, query)
     except ValueError:
         raise HTTPException(status_code=404, detail="Testo non trovato")
 
@@ -193,7 +193,8 @@ async def getBiblicalTextPortion(query: Annotated[TextPortionQuery, Query()]):
             "text": text,
             "chapter": chapter,
             "index": index,
-            "textId": textId
+            "textId": textId,
+            "startIndex": startIndex
         },
         status_code=200,
     )
@@ -227,7 +228,7 @@ async def getHistoricalText(query: Annotated[TextQuery, Query()]):
 @app.get(f"{API_ADDRESS}/text/getHistoricalTextPortion/", tags=["text"])
 async def getHistoricalTextPortion(query: Annotated[TextPortionQuery, Query()]):
     try:
-        text, chapter, index, textId = get_portion_text_by_tables(HistoricalText, ConvertIndexHistorical, query)
+        text, chapter, index, textId, startIndex = get_portion_text_by_tables(HistoricalText, ConvertIndexHistorical, query)
     except ValueError:
         raise HTTPException(status_code=404, detail="Testo non trovato")
 
@@ -236,7 +237,8 @@ async def getHistoricalTextPortion(query: Annotated[TextPortionQuery, Query()]):
             "text": text,
             "chapter": chapter,
             "index": index,
-            "textId": textId
+            "textId": textId,
+            "startIndex": startIndex
         },
         status_code=200
     )
@@ -347,13 +349,13 @@ async def getSearchXlsx(query: Annotated[XlsxResultsQuery, Query()]):
     except ValueError:
         raise HTTPException(status_code=404, detail="file not found")
 
-    urn_b = f"{query.path_b}.{query.filename_b}" if query.path_b and query.filename_b else None
+    urn_h = f"{query.path_h}.{query.filename_h}" if query.path_h and query.filename_h else None
 
     
     xlsx_bytes = render_excel_hybrid(
         cached.params,
         cached.result,
-        urn_b=urn_b,
+        urn_h=urn_h,
         h_start=query.search_start,
         h_end=query.search_end,
     )

@@ -221,7 +221,7 @@ def persist_color(s):
 def persist_highlight(s):
 
     def generate_non_overlapping_ranges(n: int, max_index: int) -> list[tuple[int, int]]:
-        """Genera fino a n range disgiunti nel dominio [0, max_index)."""
+        # Not controlled, it may generate an highlight_end on chapterTitle's word
         if n <= 0 or max_index <= 1:
             return []
 
@@ -229,7 +229,6 @@ def persist_highlight(s):
         current_pos = 0
 
         for _ in range(n):
-            # Gap casuale prima del prossimo intervallo.
             current_pos += random.randint(0, 100)
             if current_pos >= max_index:
                 break
@@ -243,9 +242,6 @@ def persist_highlight(s):
 
         return ranges
 
-    #-------------------------------------
-
-    # For highlight
     qH=s.query(
             BiblicalText.id,
             func.array_length(BiblicalText.text, 1).label("max_index")
@@ -290,18 +286,16 @@ def persist_highlight(s):
 
                 highlight = TextHighlights(
                     color_id              = random.randint(1, random.randint(1, 5)),
-                    biblical_text_id    = h_text.id,
-                    historical_text_id      = b_text.id,
-                    biblical_range_word = NumericRange(left_ranges[i][0], left_ranges[i][1]),
-                    historical_range_word   = NumericRange(right_ranges[i][0], right_ranges[i][1]),
-                    biblical_start_line = hist_start,
-                    historical_start_line   = bibl_start,
+                    biblical_text_id      = h_text.id,
+                    historical_text_id    = b_text.id,
+                    biblical_range_word   = NumericRange(left_ranges[i][0], left_ranges[i][1]),
+                    historical_range_word = NumericRange(right_ranges[i][0], right_ranges[i][1]),
+                    biblical_start_line   = hist_start,
+                    historical_start_line = bibl_start,
                 )
                 s.add(highlight)
 
     s.commit()
-
-
 
 if __name__ == "__main__":
     args = docopt(__doc__, version="BogoSlov Populate 1.0")

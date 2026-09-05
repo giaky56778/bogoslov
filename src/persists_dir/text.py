@@ -63,7 +63,7 @@ def get_portion_text_by_tables(
     text_model,
     index_model,
     query: TextPortionQuery
-) -> tuple[dict, dict | None, dict, int]:
+) -> tuple[dict, dict | None, dict, int, int]:
     with session_scope() as s:
         id = query.text_id
         line = query.line
@@ -163,7 +163,7 @@ def get_portion_text_by_tables(
             "maxIndex": max_index
         }
 
-        return text, chapter, result_index, id  # type: ignore
+        return text, chapter, result_index, id, (line - LINE_EXTRACT_LOWER)  # type: ignore
 
 def get_text_name_by_table(table):
     with session_scope() as s:

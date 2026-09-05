@@ -28,9 +28,10 @@ services:
       - ./corpora.${CORPUS_LANG}/:/corpora/:ro
       - ./models/:/models/
       - ./config.toml:/home/app/config.toml:ro
-    command: ./populate.py -v -n -e --historical -f
-    #command: ./populate.py --historical -f
-    # command: ./populate.py --historical -f
+    #command: ./populate.py -v -n -e --biblical -f
+    #command: ./populate.py --biblical -f
+    #command: ./populate.py --biblical -f
+    command: ./populate.py --example -f
     # command: ./populate.py -e 
     # command: tail -f /dev/null
     restart: no
