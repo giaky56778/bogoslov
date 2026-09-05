@@ -78,14 +78,14 @@ class HybridSearchQuery(BaseModel):
 
 class XlsxResultsQuery(BaseModel):
     filename: str
-    path_b: str | None = None
-    filename_b: str | None = None
+    path_h: str | None = None
+    filename_h: str | None = None
     search_start: int | None = None
     search_end: int | None = None
 
     @model_validator(mode="after")
     def check_all_or_none(self):
-        params = (self.path_b, self.filename_b, self.search_start, self.search_end)
+        params = (self.path_h, self.filename_h, self.search_start, self.search_end)
         not_none_count = sum(v is not None for v in params)
         if not_none_count not in (0, 4):
             raise ValueError("Every params need to be all None, or all not None")

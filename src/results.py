@@ -294,18 +294,22 @@ def render_json_hybrid(texts,scores):
 def render_excel_hybrid(
     params: dict[str, str],
     data: list[dict[str, object]],
-    urn_b: str | None = None,
+    urn_h: str | None = None,
     h_start: int | None = None,
     h_end: int | None = None,
 ) -> bytes:
     df = pd.DataFrame(data)
+    if 'idBiblical' in df.columns:
+        df = df.drop(columns=['idBiblical'])
 
     for k, v in params.items():
+        if k == 'idBiblical':
+            continue
         df[k] = v
 
-    if urn_b is not None and h_start is not None and h_end is not None:
+    if urn_h is not None and h_start is not None and h_end is not None:
         df["preview_url"] = df["urn"].apply(
-            lambda urn_h: f"{FRONTEND_URL}/previewDouble?urn_b={quote_plus(urn_b)}&urn_h={quote_plus(urn_h)}&b_start={h_start}&b_end={h_end}"
+            lambda urn_b: f"{FRONTEND_URL}/previewDouble?urn_b={quote_plus(urn_b)}&urn_h={quote_plus(urn_h)}&h_start={h_start}&h_end={h_end}"
         )
     else:
         df["preview_url"] = df.apply(
@@ -323,6 +327,9 @@ def render_excel_hybrid(
         ws.column_dimensions["C"].width = 35
         ws.column_dimensions["D"].width = 20
         ws.column_dimensions["E"].width = 40
+        ws.column_dimensions["F"].width = 60
+        ws.column_dimensions["G"].width = 10
+        ws.column_dimensions["H"].width = 160
 
     return buffer.getvalue()
 
