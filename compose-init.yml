@@ -28,10 +28,16 @@ services:
       - ./corpora.${CORPUS_LANG}/:/corpora/:ro
       - ./models/:/models/
       - ./config.toml:/home/app/config.toml:ro
-    #command: ./populate.py -v -n -e --biblical -f
-    #command: ./populate.py --biblical -f
-    #command: ./populate.py --biblical -f
-    command: ./populate.py --example -f
+      # For: docker cp src/. ...
+      - ./src/model.py:/home/app/model.py
+      - ./src/populate.py:/home/app/populate.py
+      - ./src/tei_converter.py:/home/app/tei_converter.py
+      - ./src/persists_dir/text.py:/home/app/persists_dir/text.py
+      - ./src/account.py:/home/app/account.py
+      - ./src/settings.py:/home/app/settings.py
+      - ./src/db.py:/home/app/db.py
+    #command: ./populate.py -v -e -n --biblical
+    command: ./populate.py --biblical --example -f
     # command: ./populate.py -e 
     # command: tail -f /dev/null
     restart: no

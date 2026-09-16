@@ -83,3 +83,10 @@ raw_origins = os.environ.get("ALLOWED_ORIGINS")
 if not raw_origins:
     raise ValueError("ALLOWED_ORIGINS is not define in .env file")
 ALLOWED_ORIGINS = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
+raw_hashKey = os.environ.get("SECRET_KEY")
+if not raw_origins:
+    raise ValueError("SECRET_KEY is not define in .env file")
+SECRET_KEY = raw_hashKey

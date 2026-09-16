@@ -23,13 +23,13 @@ class OptionalSearch(BaseModel):
     offset:int
 
 class QuoteCreate(BaseModel):
-    urn_h: str
-    start_h: int
-    end_h: int
-    line_start_h: int
-    b_id_text: int
+    urn_b: str
     start_b: int
     end_b: int
+    line_start_b: int
+    h_id_text: int
+    start_h: int
+    end_h: int
 
 class TextQuery(BaseModel):
     text_id: int | None = None
@@ -119,3 +119,14 @@ class GetLineFromIndexBQuery(BaseModel):
     original_path: str
     original_filename: str
     search_start: int
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: str | None = None
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str

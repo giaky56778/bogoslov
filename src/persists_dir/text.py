@@ -1,5 +1,5 @@
 from psycopg2.extras import NumericRange
-from sqlalchemy import func, select
+from sqlalchemy import func, select, exists, and_, or_
 
 from settings import LINE_EXTRACT_UPPER,LINE_EXTRACT_LOWER
 from db import session_scope
@@ -11,7 +11,8 @@ from util import compose_grouped_text
 def get_full_text_by_tables(
     text_model,
     index_model,
-    query: TextQuery
+    query: TextQuery,
+    user = None
 ) -> tuple[dict, dict | None, dict, int]:
     with session_scope() as s:
         id = query.text_id
@@ -30,6 +31,14 @@ def get_full_text_by_tables(
             if qR is None:
                 raise ValueError("Testo non trovato")
             id = int(qR)
+
+        if user is not None and user.id is not None:
+            owner_check = s.execute(
+                select(TextUser.id)
+                .where(TextUser.text_id == id, TextUser.user_id == user.id)
+            ).first()
+            if not owner_check:
+                raise ValueError("Testo non trovato o non autorizzato")
 
         q = select(text_model.text, text_model.chapters).where(text_model.id == id)
         res = s.execute(q).first()
@@ -62,8 +71,9 @@ def get_full_text_by_tables(
 def get_portion_text_by_tables(
     text_model,
     index_model,
-    query: TextPortionQuery
-) -> tuple[dict, dict | None, dict, int, int]:
+    query: TextPortionQuery,
+    user = None
+):
     with session_scope() as s:
         id = query.text_id
         line = query.line
@@ -82,8 +92,16 @@ def get_portion_text_by_tables(
             ).scalar()
 
             if qR is None:
-                raise ValueError("Testo non trovato")
+                raise ValueError("Text not found")
             id = int(qR)
+
+        if user is not None and user.id is not None:
+            owner_check = s.execute(
+                select(TextUser.id)
+                .where(TextUser.text_id == id, TextUser.user_id == user.id)
+            ).first()
+            if not owner_check:
+                raise PermissionError("Text not present for that user")
 
         if lineNumber is not None:
             spl = lineNumber.split(".")
@@ -99,11 +117,11 @@ def get_portion_text_by_tables(
             elif len(spl) == 3:
                 qT = qT.where(index_model.lineRange == "_".join(spl))
             else:
-                raise ValueError("Formato non disponibile")
+                raise ValueError("lineNumber format is wrong")
 
             line = s.execute(qT).scalar()
             if line is None:
-                raise ValueError('Non esiste il testo selezionato')
+                raise ValueError('Text not found')
 
         if wordId is not None:
             qR = s.execute(
@@ -114,11 +132,11 @@ def get_portion_text_by_tables(
                 )
             ).scalar()
             if qR is None:
-                raise ValueError('Non esiste il testo selezionato')
+                raise ValueError('Text not found')
             line = int(qR)
 
         if line is None:
-            raise ValueError('Non esiste il testo selezionato')
+            raise ValueError('Text not found')
 
         q = select(
             text_model.text[line + 1 - LINE_EXTRACT_LOWER : line + 1 + LINE_EXTRACT_UPPER],
@@ -126,7 +144,7 @@ def get_portion_text_by_tables(
         ).where(text_model.id == id)
         res = s.execute(q).first()
         if res is None:
-            raise ValueError('Non esiste il testo selezionato')
+            raise ValueError('Text not found')
         text, chapters = res
 
         rows_index_q = s.execute(
@@ -147,7 +165,7 @@ def get_portion_text_by_tables(
         ).scalar() or 0
 
         if chapters is None or not rows_index_q:
-            raise ValueError('Non esiste il testo selezionato')
+            raise ValueError('Text not found')
 
         chapter = None
         for c in chapters:
@@ -165,52 +183,113 @@ def get_portion_text_by_tables(
 
         return text, chapter, result_index, id, (line - LINE_EXTRACT_LOWER)  # type: ignore
 
-def get_text_name_by_table(table):
+def get_text_name_by_table(table, user=None):
     with session_scope() as s:
-        rows = s.execute(select(table.id, table.filename, table.path)).all()
+        stmt = select(table.id, table.filename, table.path)
+        if user is not None and user.id is not None:
+            stmt = stmt.join(TextUser, TextUser.text_id == table.id).where(TextUser.user_id == user.id)
+        rows = s.execute(stmt).all()
         return compose_grouped_text(rows)
 
-def historical_text_exists(path: str, filename: str) -> bool:
-    with session_scope() as s:
-        return s.execute(
-            select(HistoricalText.id).where(
-                HistoricalText.path == path,
-                HistoricalText.filename == filename,
-            )
-        ).first() is not None
-
-def persist_historical_text(path: str, filename: str, text: list[dict]) -> int:
-    with session_scope() as s:
-        historical_text = HistoricalText(
-            path=path,
-            filename=filename,
-            text=text,
-            chapters=calculate_chapter_index(text),
+def historical_text_exists(path: str, filename: str, s) -> bool:
+    return s.execute(
+        select(HistoricalText.id).where(
+            HistoricalText.path == path,
+            HistoricalText.filename == filename,
         )
-        s.add(historical_text)
-        s.flush()
+    ).first() is not None
 
-        for line_index, value in enumerate(text):
-            if value["type"] == "text" and value["text"]:
-                s.add(
-                    ConvertIndexHistorical(
-                        textId=historical_text.id,
-                        lineRange=value["id"],
-                        lineIndex=line_index,
-                        wordIndexRange=NumericRange(value["text"][0]["ID"], value["text"][-1]["ID"] + 1),
-                    )
+def persist_historical_text(path: str, filename: str, text: list[dict], s, hashText: str | None = None) -> int:
+    historical_text = HistoricalText(
+        path=path,
+        filename=filename,
+        text=text,
+        chapters=calculate_chapter_index(text),
+        hashText=hashText,
+    )
+    s.add(historical_text)
+    s.flush()
+
+    for line_index, value in enumerate(text):
+        if value["type"] == "text" and value["text"]:
+            s.add(
+                ConvertIndexHistorical(
+                    textId=historical_text.id,
+                    lineRange=value["id"],
+                    lineIndex=line_index,
+                    wordIndexRange=NumericRange(value["text"][0]["ID"], value["text"][-1]["ID"] + 1),
                 )
+            )
 
-        s.commit()
-        s.refresh(historical_text)
-        return historical_text.id
+    s.flush()
+    s.refresh(historical_text)
+    return historical_text.id
 
-def delete_text(id: int):
+def delete_text_for_user(id: int, user, s):
+    stmt_text = select(HistoricalText).where(HistoricalText.id == id)
+    text_obj = s.scalar(stmt_text)
+    if text_obj is None:
+        raise ValueError("Text not found")
+
+    stmt_user = select(TextUser).where(TextUser.text_id == id, TextUser.user_id == user.id)
+    user_assoc = s.scalar(stmt_user)
+    if user_assoc is None:
+        raise PermissionError("User does not own this text")
+
+    stmt_count = select(func.count(TextUser.id)).where(TextUser.text_id == id)
+    owner_count = s.scalar(stmt_count)
+
+    if owner_count > 1:
+        s.delete(user_assoc)
+    else:
+        s.delete(text_obj)
+    
+    s.flush()
+
+def get_historical_text_by_hash(hashText: str, s) -> HistoricalText | None:
+    stmt = select(HistoricalText).where(HistoricalText.hashText == hashText)
+    return s.execute(stmt).scalar()
+
+def persist_text_user(user, text_id: int, s):
+    stmt = select(TextUser.id).where(
+        TextUser.user_id == user.id,
+        TextUser.text_id == text_id
+    )
+    if s.execute(stmt).first():
+        raise ValueError("Text already exist for this user")
+
+    q = TextUser(
+        user_id= user.id, 
+        text_id=text_id
+    )
+    s.add(q)
+    s.flush()
+
+def check_alredy_exist(path:str,filename:str,hashText:str) -> bool:
     with session_scope() as s:
-        stmt = select(HistoricalText).where(HistoricalText.id == id)
-        deleteMe = s.scalar(stmt)
-        if deleteMe is None:
-            raise ValueError("Testo non trovato")
+        stmt = (
+            select(HistoricalText.id)
+            .where(
+                or_(
+                    and_(
+                        HistoricalText.path == path, 
+                        HistoricalText.filename == filename
+                    ),
+                    HistoricalText.hashText == hashText
+                )
+            )
+        )
+        return s.execute(stmt).first() is not None
 
-        s.delete(deleteMe)
-        s.commit()
+def check_text_property(path:str,filename:str,user) -> bool:
+    with session_scope() as s:
+        q = s.execute(
+            select(TextUser)
+            .join(HistoricalText, HistoricalText.id == TextUser.text_id)
+            .where(
+                HistoricalText.filename==filename,
+                HistoricalText.path==path,
+                TextUser.user_id==user.id
+            )
+        ).scalar()
+        return q is not None

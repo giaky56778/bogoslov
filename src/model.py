@@ -35,7 +35,7 @@ class ConvertIndexBiblical(Base):
     __tablename__ = "convert_index_biblical"
 
     id                  = Column(Integer, primary_key=True, autoincrement=True)
-    textId              = Column(Integer,ForeignKey("biblical_texts.id"),nullable=False)
+    textId              = Column(Integer,ForeignKey("biblical_texts.id", ondelete="CASCADE"),nullable=False)
     lineIndex           = Column(Integer,nullable=False)
     lineRange           = Column(String,nullable=False)
     wordIndexRange      = Column(INT4RANGE,nullable=False)
@@ -59,6 +59,7 @@ class HistoricalText(Base):
     __tablename__ = "historical_texts"
 
     id        = Column(Integer, primary_key=True, autoincrement=True)
+    hashText  = Column(String(64), index=True, unique=True)
     path      = Column(String, nullable=False)
     filename  = Column(String, nullable=False)
     text      = Column(ARRAY(JSONB), nullable=False)
@@ -71,11 +72,25 @@ class HistoricalText(Base):
     def __str__(self):
         return str({c.name: getattr(self, c.name) for c in self.__table__.columns})
 
+class TextUser(Base):
+    __tablename__ = "text_users"
+
+    id      = Column(Integer, autoincrement=True, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    text_id = Column(Integer, ForeignKey("historical_texts.id", ondelete="CASCADE"), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "text_id"),
+    )
+
+    def __str__(self):
+        return str({c.name: getattr(self, c.name) for c in self.__table__.columns})
+
 class User(Base):
     __tablename__ = "users"
 
     id            = Column(Integer, primary_key=True, autoincrement=True)
-    username      = Column(String, nullable=False, unique=True)
+    username      = Column(String, nullable=False, unique=True, index=True)
     password_hash = Column(String, nullable=False)
 
     def __str__(self):
@@ -92,14 +107,14 @@ class HighlightColors(Base):
 class TextHighlights(Base):
     __tablename__ = "text_highlights"
 
-    id                    = Column(Integer, primary_key=True, autoincrement=True)
-    color_id              = Column(Integer,ForeignKey("highlight_colors.id"),nullable=False)
-    biblical_text_id    = Column(Integer,ForeignKey("biblical_texts.id"),nullable=False)
-    historical_text_id      = Column(Integer,ForeignKey('historical_texts.id', ondelete="CASCADE"),nullable=False)
+    id                      = Column(Integer, primary_key=True, autoincrement=True)
+    color_id                = Column(Integer,ForeignKey("highlight_colors.id", ondelete="CASCADE"),nullable=False)
+    biblical_text_id        = Column(Integer,ForeignKey("biblical_texts.id", ondelete="CASCADE"),nullable=False)
+    text_user_id            = Column(Integer,ForeignKey("text_users.id", ondelete="CASCADE"),nullable=False)
     historical_range_word   = Column(INT4RANGE,nullable=False)
-    biblical_range_word = Column(INT4RANGE,nullable=False)
-    historical_start_line   = Column(Integer,ForeignKey("convert_index_historical.id"),nullable=False)
-    biblical_start_line = Column(Integer,ForeignKey("convert_index_biblical.id"),nullable=False)
+    biblical_range_word     = Column(INT4RANGE,nullable=False)
+    historical_start_line   = Column(Integer,ForeignKey("convert_index_historical.id", ondelete="CASCADE"),nullable=False)
+    biblical_start_line     = Column(Integer,ForeignKey("convert_index_biblical.id", ondelete="CASCADE"),nullable=False)
 
     def __str__(self):
         return str({c.name: getattr(self, c.name) for c in self.__table__.columns})

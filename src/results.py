@@ -299,12 +299,8 @@ def render_excel_hybrid(
     h_end: int | None = None,
 ) -> bytes:
     df = pd.DataFrame(data)
-    if 'idBiblical' in df.columns:
-        df = df.drop(columns=['idBiblical'])
 
     for k, v in params.items():
-        if k == 'idBiblical':
-            continue
         df[k] = v
 
     if urn_h is not None and h_start is not None and h_end is not None:
@@ -327,9 +323,6 @@ def render_excel_hybrid(
         ws.column_dimensions["C"].width = 35
         ws.column_dimensions["D"].width = 20
         ws.column_dimensions["E"].width = 40
-        ws.column_dimensions["F"].width = 60
-        ws.column_dimensions["G"].width = 10
-        ws.column_dimensions["H"].width = 160
 
     return buffer.getvalue()
 

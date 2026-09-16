@@ -1,5 +1,7 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
+import hashlib
+import json
 
 def get_namespace(root):
     """Estrae il namespace dal tag root se presente."""
@@ -161,6 +163,11 @@ def plain_text_to_rows(filename:str,text: str) -> list[dict]:
     return rows
 
 #------------------------------------------------------------------------------------------------------------
+
+def hash_tei_json(text: list[dict]):
+    json_str = json.dumps(text, sort_keys=True)
+    
+    return hashlib.sha256(json_str.encode('utf-8')).hexdigest()
 
 def calculate_chapter_index(text: list[dict]) -> list[dict]:
     """Estrae l'indice dei capitoli (titolo + range di righe) da un array di righe JSON."""

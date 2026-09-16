@@ -5,7 +5,7 @@ from model import *
 from schemas import *
 from util import strip_punctuation
 
-def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: str, texts):
+def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: str, texts, user):
         
     def find_already_highlighted(
         path_h: str,
@@ -22,9 +22,11 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
             select(1)
             .select_from(TextHighlights)
             .join(BiblicalText, TextHighlights.biblical_text_id == BiblicalText.id)
-            .join(HistoricalText, TextHighlights.historical_text_id == HistoricalText.id)
+            .join(TextUser, TextUser.id == TextHighlights.text_user_id)
+            .join(HistoricalText, TextUser.text_id == HistoricalText.id)
             .where(
                 and_(
+                    TextUser.user_id == user.id,
                     BiblicalText.path == path_h,
                     BiblicalText.filename == filename_h,
                     HistoricalText.filename == filename_b,
