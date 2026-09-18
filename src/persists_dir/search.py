@@ -50,7 +50,6 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
         )
         stmt = select(occupied.label("occupied"))
         run=s.execute(stmt).scalar()
-        #print(run)
         return run
 
     def offsetWordFinder(toFind:str, path, filename, start, end, s):
@@ -119,7 +118,6 @@ def obtain_range_word(startSearch:int,endSearch:int, path_b: str, filename_b: st
             return None
 
         start_offset, end_offset = offset_result
-        print('offset', start_offset, end_offset)
 
         return {
             "startWordId": int(start_word_id) + start_offset,

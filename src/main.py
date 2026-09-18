@@ -224,7 +224,7 @@ async def getHistoricalText(
     except ValueError:
         raise HTTPException(status_code=404, detail="Text not found")
     except PermissionError:
-        raise HTTPException(status_code=403, detail="Permissione denied: user dont own this text")
+        raise HTTPException(status_code=403, detail="Permission denied: user dont own this text")
 
     return JSONResponse(
         content={
@@ -244,9 +244,9 @@ async def getHistoricalTextPortion(
     try:
         text, chapter, index, textId, startIndex = get_portion_text_by_tables(HistoricalText, ConvertIndexHistorical, query, current_user)
     except ValueError:
-        raise HTTPException(status_code=404, detail="Testo non trovato")
+        raise HTTPException(status_code=404, detail="Text not found")
     except PermissionError:
-        raise HTTPException(status_code=403, detail="Permissione denied: user dont own this text")
+        raise HTTPException(status_code=403, detail="Permission denied: user dont own this text")
 
     return JSONResponse(
         content={
@@ -310,9 +310,9 @@ async def updateQuote(
         update_quotes(id, body, current_user)
         return Response(status_code=204)
     except ValueError:
-        raise HTTPException(status_code=404, detail="Highlight  not found")
+        raise HTTPException(status_code=404, detail="Highlight not found")
     except PermissionError:
-        raise HTTPException(status_code=403, detail="Permissione denied: cant update this highlight")
+        raise HTTPException(status_code=403, detail="Permission denied: cant update this highlight")
 
 @app.delete(f"{API_ADDRESS}/quote/deleteQuote/{{id}}", tags=["quote"])
 async def deleteQuote(
@@ -325,7 +325,7 @@ async def deleteQuote(
     except ValueError:
         raise HTTPException(status_code=404, detail="Highlight not found")
     except PermissionError:
-        raise HTTPException(status_code=403, detail="Permissione denied: cant delete this highlight")
+        raise HTTPException(status_code=403, detail="Permission denied: cant delete this highlight")
     
 @app.get(f"{API_ADDRESS}/search/hybridSearch", tags=["search"])
 async def hybridSearch(
@@ -394,7 +394,7 @@ async def getSearchXlsx(
         and query.filename_h is not None 
         and not check_text_property(query.path_h,query.filename_h,current_user)
     ):
-      raise HTTPException(status_code=403, detail="Permissione Denied: user dont own this text")
+      raise HTTPException(status_code=403, detail="Permission Denied: user dont own this text")
     
     urn_h = f"{query.path_h}.{query.filename_h}" if query.path_h and query.filename_h else None
 
@@ -426,7 +426,7 @@ async def getSearchJson(
     except ValueError:
         raise HTTPException(status_code=404, detail="File not found")
     except PermissionError:
-        raise HTTPException(status_code=403, detail="You cant access this result")
+        raise HTTPException(status_code=403, detail="Permission denied: cant access this result")
 
     data = cached.result
 
@@ -439,7 +439,7 @@ async def getSearchJson(
     ):
         max_offset = len(data) // LIMIT_RESULT
         if query.offset < 0 or query.offset > max_offset:
-            raise HTTPException(status_code=422, detail="offset out of bounds")
+            raise HTTPException(status_code=422, detail="Offset out of bounds")
 
         start = query.offset * LIMIT_RESULT
         resultSearchOffset = data[start:start + LIMIT_RESULT]
@@ -470,7 +470,12 @@ async def getSearchJson(
     # If is from a write sentence
     query_text = str(cached.params.get("query", ""))
     result = [{"text": item, "query": query_text} for item in data]
-    return JSONResponse(content = {"results":result}, status_code=200)
+    return JSONResponse(
+        status_code=200,
+        content = {
+            "results":result
+        }
+    )
 
 @app.get(f"{API_ADDRESS}/info/getAlgoToolpit/", tags=["info"])
 async def getToolTip():
@@ -478,7 +483,10 @@ async def getToolTip():
         "algo":ALGO_TOOLPIT,
         "strans":STRANS_TOOLPIT
     }
-    return JSONResponse(content= result, status_code=200)
+    return JSONResponse(
+        content= result, 
+        status_code=200
+    )
 
 @app.get(f"{API_ADDRESS}/info/getAllHighlightBiblical", tags=["quote"])
 async def getAllHighlightBiblical(
@@ -507,9 +515,9 @@ async def saveQuote(
             current_user
         )
     except ValueError:
-        raise HTTPException(status_code=409, detail="highlight already exists in that range")
+        raise HTTPException(status_code=409, detail="Highlight already exists in this range")
     except PermissionError:
-        raise HTTPException(status_code=403, detail="You cant access this text")
+        raise HTTPException(status_code=403, detail="Permissione denied: cant access this text")
 
     return Response(status_code=201)
 
@@ -617,34 +625,38 @@ async def login_for_access_token(
         value=access_token,
         httponly=True,
         samesite="lax",
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60 #[seconds]
     )
     return {"message": "Successfully logged in"}
 
 @app.post(f"{API_ADDRESS}/user/logout", tags=["auth"])
 async def logout(response: Response):
     response.delete_cookie(key="access_token")
-    return {
-        "message": "Successfully logged out"
-    }
+    return {"message": "Successfully logged out"}
 
 @app.get(f"{API_ADDRESS}/user/me", tags=["auth"])
 async def read_users_me(current_user = Depends(get_current_user)):
-    return {"username": current_user.username}
+    return JSONResponse(
+        status_code=200,
+        content={
+            "username": current_user.username
+        }
+    )
 
 @app.post(f"{API_ADDRESS}/user/changePassword", tags=["auth"])
 async def change_password(
-    request: ChangePasswordRequest,
+    old_password: Annotated[str, Form()],
+    new_password: Annotated[str, Form()],
     current_user = Depends(get_current_user)
 ):
-    if not password_hash.verify(request.old_password, current_user.password_hash):
+    if not password_hash.verify(old_password, current_user.password_hash):
         raise HTTPException(
             status_code=400,
             detail="Old password doesnt match",
         )
     
-    update_user_password(current_user.username, request.new_password)
-    return  JSONResponse(
+    update_user_password(current_user.username, new_password)
+    return JSONResponse(
         content={
             "message": "Password change successfully"
         }, 

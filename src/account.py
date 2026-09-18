@@ -80,8 +80,12 @@ async def get_current_user(username: str = Depends(decode_jwt)):
 
 def update_user_password(username: str, new_password: str):
     with session_scope() as s:
+        psw=get_password_hash(new_password)
         stmt = select(User).where(User.username == username)
         user = s.execute(stmt).scalars().first()
-        if user:
-            user.password_hash = get_password_hash(new_password)
-            s.commit()
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+
+        user.password_hash = psw
+        s.commit()
+        s.refresh(user)
