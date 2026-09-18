@@ -18,7 +18,7 @@ def get_historical_line_index_by_word(path: str, filename: str, word_id: int, us
         )
         result = s.execute(stmt).scalar()
         if result is None:
-            raise ValueError("This text is not register for this user or text doesn't exist")
+            raise ValueError("Error: user cant access this text")
         
         return result
 

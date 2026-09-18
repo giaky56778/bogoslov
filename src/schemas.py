@@ -1,5 +1,5 @@
 from pydantic import BaseModel, model_validator
-from typing import Optional
+from fastapi import UploadFile, File, Form
 
 class RangeSchema(BaseModel):
     startLine: int
@@ -7,9 +7,9 @@ class RangeSchema(BaseModel):
     endWord:   int
 
 class HighlightUpdate(BaseModel):
-    color:       int | None = None
+    color:     int | None = None
     biblical:  RangeSchema | None = None
-    historical:    RangeSchema | None = None
+    historical:RangeSchema | None = None
 
 class HybridResult(BaseModel):
     urn: str
@@ -76,6 +76,12 @@ class HybridSearchQuery(BaseModel):
     sources: str
     k: int | None = 60
 
+    @model_validator(mode="after")
+    def check_all_or_none(self):
+        if self is not None or self.k <= 0 :
+            raise ValueError("Error: k cannot be negative or 0")
+        return self
+
 class XlsxResultsQuery(BaseModel):
     filename: str
     path_h: str | None = None
@@ -88,7 +94,7 @@ class XlsxResultsQuery(BaseModel):
         params = (self.path_h, self.filename_h, self.search_start, self.search_end)
         not_none_count = sum(v is not None for v in params)
         if not_none_count not in (0, 4):
-            raise ValueError("Every params need to be all None, or all not None")
+            raise ValueError("Error: every params need to be all None, or all not None")
         return self
 
 class SearchJsonQuery(BaseModel):
@@ -104,9 +110,26 @@ class SearchJsonQuery(BaseModel):
         params = (self.original_path, self.original_filename, self.search_start, self.search_end,self.offset)
         not_none_count = sum(v is not None for v in params)
         if not_none_count not in (0, 5):
-            raise ValueError("Every params need to be all None, or all not None")
+            raise ValueError("Error: every params need to be all None, or all not None")
         return self
-    
+
+class UploadTextQuery:
+    def __init__(
+        self,
+        path: str = Form(...),
+        filename: str = Form(...),
+        file: UploadFile | None = File(None),
+        text: str | None = Form(None)
+    ):
+        self.path = path
+        self.filename = filename
+        self.file = file
+        self.text = text
+        
+        notNone = [v for v in (self.file, self.text) if v is not None]
+        if len(notNone) != 1:
+            raise ValueError("Error: you must provide exactly one of 'file' or 'text'")
+
 class HighlightBiblicalQuery(BaseModel):
     filename: str
     path: str

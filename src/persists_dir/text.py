@@ -1,5 +1,6 @@
 from psycopg2.extras import NumericRange
-from sqlalchemy import func, select, exists, and_, or_
+from sqlalchemy import func, select, and_, or_
+from typing import Type
 
 from settings import LINE_EXTRACT_UPPER,LINE_EXTRACT_LOWER
 from db import session_scope
@@ -8,9 +9,10 @@ from schemas import *
 from tei_converter import calculate_chapter_index
 from util import compose_grouped_text
 
+
 def get_full_text_by_tables(
-    text_model,
-    index_model,
+    text_model: Type[BiblicalText] | Type[HistoricalText],
+    index_model: Type[ConvertIndexBiblical] | Type[ConvertIndexHistorical],
     query: TextQuery,
     user = None
 ) -> tuple[dict, dict | None, dict, int]:
@@ -29,21 +31,24 @@ def get_full_text_by_tables(
             ).scalar()
 
             if qR is None:
-                raise ValueError("Testo non trovato")
+                raise ValueError("Error: text not found")
             id = int(qR)
 
         if user is not None and user.id is not None:
             owner_check = s.execute(
                 select(TextUser.id)
-                .where(TextUser.text_id == id, TextUser.user_id == user.id)
+                .where(
+                    TextUser.text_id == id, 
+                    TextUser.user_id == user.id
+                )
             ).first()
             if not owner_check:
-                raise ValueError("Testo non trovato o non autorizzato")
+                raise ValueError("Error: text not found or user cant access this text")
 
         q = select(text_model.text, text_model.chapters).where(text_model.id == id)
         res = s.execute(q).first()
         if res is None:
-            raise ValueError("Testo non trovato")
+            raise ValueError("Error: text not found")
         text, chapters = res
 
         rows_index_q = s.execute(
@@ -56,7 +61,7 @@ def get_full_text_by_tables(
         ).scalar() or 0
 
         if chapters is None:
-            raise ValueError('Non esiste il testo selezionato')
+            raise ValueError('Error: text not found')
 
         result_index = {
             "content": {
@@ -66,11 +71,14 @@ def get_full_text_by_tables(
             "maxIndex": max_index
         }
 
-        return text, chapters, result_index, id  # type: ignore
+        if id is None:
+            raise ValueError("Error: text not found")
+
+        return text, chapters, result_index, id
 
 def get_portion_text_by_tables(
-    text_model,
-    index_model,
+    text_model: Type[BiblicalText] | Type[HistoricalText],
+    index_model: Type[ConvertIndexBiblical] | Type[ConvertIndexHistorical],
     query: TextPortionQuery,
     user = None
 ):
@@ -92,7 +100,7 @@ def get_portion_text_by_tables(
             ).scalar()
 
             if qR is None:
-                raise ValueError("Text not found")
+                raise ValueError("Error: text not found")
             id = int(qR)
 
         if user is not None and user.id is not None:
@@ -101,7 +109,7 @@ def get_portion_text_by_tables(
                 .where(TextUser.text_id == id, TextUser.user_id == user.id)
             ).first()
             if not owner_check:
-                raise PermissionError("Text not present for that user")
+                raise PermissionError("Permission denied: user cant caccess this text")
 
         if lineNumber is not None:
             spl = lineNumber.split(".")
@@ -117,11 +125,11 @@ def get_portion_text_by_tables(
             elif len(spl) == 3:
                 qT = qT.where(index_model.lineRange == "_".join(spl))
             else:
-                raise ValueError("lineNumber format is wrong")
+                raise ValueError("Error: lineNumber format is wrong")
 
             line = s.execute(qT).scalar()
             if line is None:
-                raise ValueError('Text not found')
+                raise ValueError("Error: text not found")
 
         if wordId is not None:
             qR = s.execute(
@@ -132,11 +140,11 @@ def get_portion_text_by_tables(
                 )
             ).scalar()
             if qR is None:
-                raise ValueError('Text not found')
+                raise ValueError("Error: text not found")
             line = int(qR)
 
         if line is None:
-            raise ValueError('Text not found')
+            raise ValueError("Error: text not found")
 
         q = select(
             text_model.text[line + 1 - LINE_EXTRACT_LOWER : line + 1 + LINE_EXTRACT_UPPER],
@@ -144,7 +152,7 @@ def get_portion_text_by_tables(
         ).where(text_model.id == id)
         res = s.execute(q).first()
         if res is None:
-            raise ValueError('Text not found')
+            raise ValueError("Error: text not found")
         text, chapters = res
 
         rows_index_q = s.execute(
@@ -165,7 +173,7 @@ def get_portion_text_by_tables(
         ).scalar() or 0
 
         if chapters is None or not rows_index_q:
-            raise ValueError('Text not found')
+            raise ValueError("Error: text not found")
 
         chapter = None
         for c in chapters:
@@ -183,7 +191,7 @@ def get_portion_text_by_tables(
 
         return text, chapter, result_index, id, (line - LINE_EXTRACT_LOWER)  # type: ignore
 
-def get_text_name_by_table(table, user=None):
+def get_text_name_by_table(table: Type[BiblicalText] | Type[HistoricalText], user=None):
     with session_scope() as s:
         stmt = select(table.id, table.filename, table.path)
         if user is not None and user.id is not None:
@@ -229,12 +237,12 @@ def delete_text_for_user(id: int, user, s):
     stmt_text = select(HistoricalText).where(HistoricalText.id == id)
     text_obj = s.scalar(stmt_text)
     if text_obj is None:
-        raise ValueError("Text not found")
+        raise ValueError("Error: text not found")
 
     stmt_user = select(TextUser).where(TextUser.text_id == id, TextUser.user_id == user.id)
     user_assoc = s.scalar(stmt_user)
     if user_assoc is None:
-        raise PermissionError("User does not own this text")
+        raise PermissionError("Permission denide: user cant acess this text")
 
     stmt_count = select(func.count(TextUser.id)).where(TextUser.text_id == id)
     owner_count = s.scalar(stmt_count)
@@ -256,7 +264,7 @@ def persist_text_user(user, text_id: int, s):
         TextUser.text_id == text_id
     )
     if s.execute(stmt).first():
-        raise ValueError("Text already exist for this user")
+        raise ValueError("Error: text already exist for this user")
 
     q = TextUser(
         user_id= user.id, 

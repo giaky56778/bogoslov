@@ -40,26 +40,26 @@ A starting point for a new setup is the choice of language. This is relevant for
 Specify the language you are working with in `.env`.
 
 Make sure you have docker compose installed. We get started by creating the container image that will be used to deploy In the `code` directory run
-
+```bash
     docker build -t bogoslov .
-
+```
 Then in the root directory initialize the data with (potentially changing the env file)
-
+```bash
     docker compose --env-file env.chu -f compose-init.yml up --abort-on-container-exit --exit-code-from populate
-
+```
 
 If you need to deploy to a machine where you cannot run the initialization scripts, make sure to export your data on a *nix environment with (making sure to enable the lines for the correct language):
-
+```bash
     ./dump-db.sh
-
+```
 Then make sure to have the exported files in the init directory of your deployment at the first launch of your `db` container.
 
 ## Running
 
 After having initialized the data, run (selecting the env file of choice):
-
+```bash
     docker compose --env-file env.chu up
-
+```
 Open http://localhost:8780 with your browser.
 
 # Corpora

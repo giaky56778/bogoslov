@@ -11,7 +11,7 @@ def check_texts_exist(s, idH: int, idB: int):
     h_exists = bool(s.scalar(select(exists().where(BiblicalText.id == idB))))
     b_exists = bool(s.scalar(select(exists().where(HistoricalText.id == idH))))
     if not h_exists or not b_exists:
-        raise ValueError("Testo non trovato")
+        raise ValueError("Error: text not found")
 
 def common_get_quotes(rows) -> dict:
     grouped = dict()
@@ -84,11 +84,11 @@ def update_quotes(
         result = s.scalar(stmt)
 
         if result is None:
-            raise ValueError("Highlight non trovato")
+            raise ValueError("Error: highlight not found")
             
         user_assoc = s.execute(select(TextUser).where(TextUser.id == result.text_user_id)).scalar_one()
         if user_assoc.user_id != user.id:
-            raise PermissionError("Utente non autorizzato a modificare questo highlight.")
+            raise PermissionError("Permission denied: user cant modify this highlight")
         
         if toUpdate.color is not None:
             result.color_id = toUpdate.color
@@ -105,9 +105,8 @@ def update_quotes(
         if toUpdate.historical is not None:
             historical_start_line = s.execute(
                 select(ConvertIndexHistorical.id)
-                .join(TextUser, TextUser.id == result.text_user_id)
                 .where(
-                    ConvertIndexHistorical.textId == TextUser.text_id,
+                    ConvertIndexHistorical.textId == user_assoc.text_id,
                     ConvertIndexHistorical.lineIndex == toUpdate.historical.startLine,
                 )
             ).scalar_one()
@@ -122,11 +121,11 @@ def delete_highlight(id: int, user):
         stmt = select(TextHighlights).where(TextHighlights.id == id)
         deleteMe = s.scalar(stmt)
         if deleteMe is None:
-            raise ValueError("Highlight non trovato") 
+            raise ValueError("Error: highlight not found") 
             
         user_assoc = s.execute(select(TextUser).where(TextUser.id == deleteMe.text_user_id)).scalar_one()
         if user_assoc.user_id != user.id:
-            raise PermissionError("Utente non autorizzato a eliminare questo highlight.")
+            raise PermissionError("Permission denied: user cant delete this highlight")
         
         s.delete(deleteMe)
         s.commit()
@@ -206,7 +205,7 @@ def insert_new_highlights(
             )
         ).scalar()
         if not user_assoc:
-            raise PermissionError("Utente non autorizzato ad aggiungere evidenziazioni a questo testo.")
+            raise PermissionError("Permission denied: cant add new highlight on this text, user cant access this text")
 
         path_b, filename_b = parse_urn(urn_b)
 
@@ -230,7 +229,7 @@ def insert_new_highlights(
         ).first()
 
         if already_highlighted is not None:
-            raise ValueError("highlight already exists in this range")
+            raise ValueError("Error: highlight already exists in this range")
         
         historical_start_line = s.execute(
             select(ConvertIndexHistorical.id)

@@ -2,7 +2,6 @@
 """The BogoSlov API, see 4euplus.eu/4EU-1150.html and https://ceur-ws.org/Vol-3937/short8.pdf"""
 
 from typing import Annotated, Callable
-from enum import Enum
 from pathlib import Path
 import asyncio
 import json
@@ -17,7 +16,7 @@ from pydantic import BaseModel, Field
 import gradio as gr
 from datetime import timedelta
 
-from settings import ms2source, examples, port, lang, ALGO_NOT_FULL_LINE,LIMIT_RESULT,STRANS_TOOLPIT,ALGO_TOOLPIT,ALLOWED_ORIGINS,API_ADDRESS
+from settings import *
 from persist import *
 from persists_dir import *
 from results import render_excel, render_excel_hybrid, render_html, render_json, render_json_hybrid
@@ -26,7 +25,7 @@ from tei_converter import convert_tei_upload, plain_text_to_rows, hash_tei_json
 from cache import store_search_result, get_search_result, purge_expired_search_results
 from schemas import *
 from db import session_scope
-from account import authenticate_user, create_access_token, get_current_user, update_user_password, password_hash
+from account import *
 from settings import ACCESS_TOKEN_EXPIRE_MINUTES
 
 import app_regex
@@ -167,6 +166,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+### info endpoint -----------------------------------------------------------
+
+@app.get(f"{API_ADDRESS}/info/getAlgoToolpit/", tags=["info"])
+async def getToolTip():
+    result={
+        "algo":ALGO_TOOLPIT,
+        "strans":STRANS_TOOLPIT
+    }
+    return JSONResponse(
+        content= result, 
+        status_code=200
+    )
+
+
+### text endpoint -----------------------------------------------------------
+
 @app.get(f"{API_ADDRESS}/text/getBiblicalText/", tags=["text"])
 async def getBiblicalText(query: Annotated[TextQuery, Query()]):
             
@@ -268,6 +284,94 @@ async def getHistoricalTextNames(current_user = Depends(get_current_user)):
         status_code=200
     )
 
+@app.post(f"{API_ADDRESS}/text/upload", tags=["text"])
+async def uploadHistoricalText(
+    query: UploadTextQuery = Depends(),
+    current_user = Depends(get_current_user)
+):
+    path = query.path
+    filename = query.filename
+    file = query.file
+    text = query.text
+    
+    def validate_path_component(value: str):
+        if not value or "/" in value or "\\" in value or value in (".", ".."):
+            raise HTTPException(status_code=422, detail=f"Invalid name")
+
+    validate_path_component(path)
+    validate_path_component(filename)
+
+    if file is not None and (file.filename or "").lower().endswith((".xml")):
+        try:
+            rows = convert_tei_upload(file)
+        except ET.ParseError:
+            raise HTTPException(status_code=422, detail="Invalid TEI/XML file")
+    else:
+        if file is not None:
+            raw_text = (await file.read()).decode("utf-8", errors="replace")
+        elif text is not None:
+            raw_text = text
+        else:
+            raise HTTPException(status_code=422, detail="Provide either a TEI file or plain text")
+
+        rows = plain_text_to_rows(filename,raw_text)
+
+    if not rows:
+        raise HTTPException(status_code=422, detail="No text content found")
+
+    hashText=hash_tei_json(rows)
+    
+    with session_scope() as s:
+        historicalText = get_historical_text_by_hash(hashText, s)
+        statusCode=200 # if is only add the reference to the account
+        try:
+            if historicalText is None: 
+                if historical_text_exists(path, filename, s):
+                    raise HTTPException(status_code=409, detail="A text with this path and filename already exists")
+                                
+                historical_id = persist_historical_text(path, filename, rows, s, hashText=hashText)
+                statusCode=201
+                newPath=path
+                newFilename=filename
+            else:
+                historical_id=int(historicalText.id)
+                newPath=historicalText.path
+                newFilename=historicalText.filename
+
+
+            persist_text_user(current_user, historical_id, s)
+            s.commit()
+
+            return JSONResponse(
+                content={
+                    "id": historical_id,
+                    "path":newPath,
+                    "filename":newFilename
+                }, 
+                status_code=statusCode
+            )
+        except ValueError:
+            raise HTTPException(status_code=409, detail="User already have this text")
+            
+   
+@app.delete(f"{API_ADDRESS}/text/deleteHistoricalText", tags=["text"])
+async def deleteHistoricalText(
+    id: int,
+    current_user = Depends(get_current_user)
+):
+    try:
+        with session_scope() as s:
+            delete_text_for_user(id, current_user, s)
+            s.commit()
+        return Response(status_code=204)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Text not found")
+    except PermissionError:
+        raise HTTPException(status_code=403, detail="User can't delete this text")
+
+
+### quote endpoint -------------------------------------------------------
+
 @app.get(f"{API_ADDRESS}/quote/getQuotes", tags=["quote"])
 async def getQuotes(
     query: Annotated[QuotesQuery, Query()],
@@ -326,6 +430,42 @@ async def deleteQuote(
         raise HTTPException(status_code=404, detail="Highlight not found")
     except PermissionError:
         raise HTTPException(status_code=403, detail="Permission denied: cant delete this highlight")
+
+@app.get(f"{API_ADDRESS}/info/getAllHighlightBiblical", tags=["quote"])
+async def getAllHighlightBiblical(
+    query: Annotated[HighlightBiblicalQuery, Query()],
+    current_user = Depends(get_current_user)
+):
+    return JSONResponse(
+        content=list_all_biblical_highlights(path=query.path, filename=query.filename, user=current_user),
+        status_code=200,
+    )
+
+@app.post(f"{API_ADDRESS}/quote/saveQuote", tags=["quote"])
+async def saveQuote(
+    body: QuoteCreate,
+    current_user = Depends(get_current_user)
+):
+    try:
+        insert_new_highlights(
+            body.urn_b,
+            body.start_b,
+            body.end_b,
+            body.line_start_b,
+            body.h_id_text,
+            body.start_h,
+            body.end_h,
+            current_user
+        )
+    except ValueError:
+        raise HTTPException(status_code=409, detail="Highlight already exists in this range")
+    except PermissionError:
+        raise HTTPException(status_code=403, detail="Permissione denied: cant access this text")
+
+    return Response(status_code=201)
+
+
+### search endpoint ------------------------------------------------------
     
 @app.get(f"{API_ADDRESS}/search/hybridSearch", tags=["search"])
 async def hybridSearch(
@@ -361,12 +501,12 @@ async def hybridSearch(
         params = {
             "query": query.fulltext,
             #"method": "hybrid",
-            "sources": query.sources,
+            "sources": query.sources
         }
         name = await store_search_result(params, result)
         yield sse_event("complete", {
             "filename": name,
-            "total_results": len(result),
+            "total_results": len(result)
         })
 
     return StreamingResponse(
@@ -375,7 +515,7 @@ async def hybridSearch(
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
+            "X-Accel-Buffering": "no"
         },
     )
 
@@ -387,14 +527,14 @@ async def getSearchXlsx(
     try:
         cached = await get_search_result(query.filename)
     except ValueError:
-        raise HTTPException(status_code=404, detail="file not found")
+        raise HTTPException(status_code=404, detail="Search file not found")
 
     if (
         query.path_h is not None 
         and query.filename_h is not None 
         and not check_text_property(query.path_h,query.filename_h,current_user)
     ):
-      raise HTTPException(status_code=403, detail="Permission Denied: user dont own this text")
+      raise HTTPException(status_code=403, detail="Permission Denied: user access this text")
     
     urn_h = f"{query.path_h}.{query.filename_h}" if query.path_h and query.filename_h else None
 
@@ -477,132 +617,8 @@ async def getSearchJson(
         }
     )
 
-@app.get(f"{API_ADDRESS}/info/getAlgoToolpit/", tags=["info"])
-async def getToolTip():
-    result={
-        "algo":ALGO_TOOLPIT,
-        "strans":STRANS_TOOLPIT
-    }
-    return JSONResponse(
-        content= result, 
-        status_code=200
-    )
 
-@app.get(f"{API_ADDRESS}/info/getAllHighlightBiblical", tags=["quote"])
-async def getAllHighlightBiblical(
-    query: Annotated[HighlightBiblicalQuery, Query()],
-    current_user = Depends(get_current_user)
-):
-    return JSONResponse(
-        content=list_all_biblical_highlights(path=query.path, filename=query.filename, user=current_user),
-        status_code=200,
-    )
-
-@app.post(f"{API_ADDRESS}/quote/saveQuote", tags=["quote"])
-async def saveQuote(
-    body: QuoteCreate,
-    current_user = Depends(get_current_user)
-):
-    try:
-        insert_new_highlights(
-            body.urn_b,
-            body.start_b,
-            body.end_b,
-            body.line_start_b,
-            body.h_id_text,
-            body.start_h,
-            body.end_h,
-            current_user
-        )
-    except ValueError:
-        raise HTTPException(status_code=409, detail="Highlight already exists in this range")
-    except PermissionError:
-        raise HTTPException(status_code=403, detail="Permissione denied: cant access this text")
-
-    return Response(status_code=201)
-
-@app.post(f"{API_ADDRESS}/text/upload", tags=["text"])
-async def uploadHistoricalText(
-    path: str = Form(...),
-    filename: str = Form(...),
-    file: UploadFile | None = File(None),
-    text: str | None = Form(None),
-    current_user = Depends(get_current_user)
-):
-    def validate_path_component(value: str):
-        if not value or "/" in value or "\\" in value or value in (".", ".."):
-            raise HTTPException(status_code=422, detail=f"Invalid name")
-
-    validate_path_component(path)
-    validate_path_component(filename)
-
-    if file is not None and (file.filename or "").lower().endswith((".xml")):
-        try:
-            rows = convert_tei_upload(file)
-        except ET.ParseError:
-            raise HTTPException(status_code=422, detail="Invalid TEI/XML file")
-    else:
-        if file is not None:
-            raw_text = (await file.read()).decode("utf-8", errors="replace")
-        elif text is not None:
-            raw_text = text
-        else:
-            raise HTTPException(status_code=422, detail="Provide either a TEI file or plain text")
-
-        rows = plain_text_to_rows(filename,raw_text)
-
-    if not rows:
-        raise HTTPException(status_code=422, detail="No text content found")
-
-    hashText=hash_tei_json(rows)
-    
-    with session_scope() as s:
-        historicalText = get_historical_text_by_hash(hashText, s)
-        statusCode=200 # if is only add the reference to the account
-        try:
-            if historicalText is None: 
-                if historical_text_exists(path, filename, s):
-                    raise HTTPException(status_code=409, detail="A text with this path and filename already exists")
-                                
-                historical_id = persist_historical_text(path, filename, rows, s, hashText=hashText)
-                statusCode=201
-                newPath=path
-                newFilename=filename
-            else:
-                historical_id=int(historicalText.id)
-                newPath=historicalText.path
-                newFilename=historicalText.filename
-
-
-            persist_text_user(current_user, historical_id, s)
-            s.commit()
-
-            return JSONResponse(
-                content={
-                    "id": historical_id,
-                    "path":newPath,
-                    "filename":newFilename
-                }, 
-                status_code=statusCode
-            )
-        except ValueError:
-            raise HTTPException(status_code=409, detail="User already have this text")
-            
-   
-@app.delete(f"{API_ADDRESS}/text/deleteHistoricalText", tags=["text"])
-async def deleteHistoricalText(
-    id: int,
-    current_user = Depends(get_current_user)
-):
-    try:
-        with session_scope() as s:
-            delete_text_for_user(id, current_user, s)
-            s.commit()
-        return Response(status_code=204)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Text not found")
-    except PermissionError:
-        raise HTTPException(status_code=403, detail="User can't delete this text")
+### account endpoint -----------------------------------------------------------
 
 @app.post(f"{API_ADDRESS}/user/login", tags=["auth"])
 async def login_for_access_token(
@@ -662,6 +678,9 @@ async def change_password(
         }, 
         status_code=201
     )
+
+
+### main --------------------------------------------------------------------
 
 if __name__ == "__main__":
     import uvicorn

@@ -10,7 +10,7 @@ from settings import ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY
 from model import User
 
 password_hash = PasswordHash.recommended()
-DUMMY_HASH = password_hash.hash("dummy_passowrd")
+FAKE_HASH = password_hash.hash("fake_passowrd")
 cookie_scheme = APIKeyCookie(name="access_token", auto_error=False)
 
 def get_password_hash(password):
@@ -26,7 +26,7 @@ def authenticate_user(username: str, password: str):
         user = s.execute(stmt).scalars().first()
 
         if not user:
-            password_hash.verify("dummy_password", DUMMY_HASH) 
+            password_hash.verify("fake_password", FAKE_HASH) 
             return False
         
         if not password_hash.verify(password, user.password_hash):
