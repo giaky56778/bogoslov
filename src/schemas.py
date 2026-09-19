@@ -39,7 +39,7 @@ class TextQuery(BaseModel):
     @model_validator(mode="after")
     def check_text_identifier(self):
         if not (((self.path is not None) and (self.filename is not None)) or self.text_id is not None):
-            raise ValueError("Specificare 'path' e 'filename' oppure 'text_id'")
+            raise ValueError("Erorr: provide only path and filename or only text_id")
         return self
 
 class TextPortionQuery(BaseModel):
@@ -53,11 +53,11 @@ class TextPortionQuery(BaseModel):
     @model_validator(mode="after")
     def check_portion_parameters(self):
         if not (((self.path is not None) and (self.filename is not None)) or self.text_id is not None):
-            raise ValueError("Specificare 'path' e 'filename' oppure 'text_id'")
+            raise ValueError("Erorr: provide only path and filename or only text_id")
         
         parameterNotNone = [v for v in (self.line, self.lineNumber, self.wordId) if v is not None]
         if len(parameterNotNone) != 1:
-            raise ValueError("Specificare esattamente uno tra 'line', 'lineNumber' e 'wordId'")
+            raise ValueError("Erorr: provide exactly only one of line, lineNumber or wordId")
         return self
 
 class QuotesQuery(BaseModel):
@@ -78,7 +78,7 @@ class HybridSearchQuery(BaseModel):
 
     @model_validator(mode="after")
     def check_all_or_none(self):
-        if self is not None or self.k <= 0 :
+        if self.k is not None and self.k <= 0 :
             raise ValueError("Error: k cannot be negative or 0")
         return self
 
@@ -114,6 +114,7 @@ class SearchJsonQuery(BaseModel):
         return self
 
 class UploadTextQuery:
+    # cannot be BaseModel, Form and File break the server endpoint
     def __init__(
         self,
         path: str = Form(...),
