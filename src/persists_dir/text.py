@@ -189,7 +189,9 @@ def get_portion_text_by_tables(
             "maxIndex": max_index
         }
 
-        return text, chapter, result_index, id, (line - LINE_EXTRACT_LOWER)  # type: ignore
+        tempLine= line - LINE_EXTRACT_LOWER
+        startLine= tempLine if tempLine >0 else 0
+        return text, chapter, result_index, id, startLine
 
 def get_text_name_by_table(table: Type[BiblicalText] | Type[HistoricalText], user=None):
     with session_scope() as s:
